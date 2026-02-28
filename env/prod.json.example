@@ -1,0 +1,4 @@
+{
+  "BASE_URL": "https://ppv-api.votredomaine.com/api/v1",
+  "ENVIRONMENT": "prod"
+}

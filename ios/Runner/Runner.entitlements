@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <!-- Remplacer VOTRE_DOMAINE_HOSTINGER par la valeur de APP_URL dans ppv-api/.env -->
+        <string>applinks:VOTRE_DOMAINE_HOSTINGER</string>
+    </array>
+</dict>
+</plist>
