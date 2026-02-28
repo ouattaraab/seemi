@@ -34,13 +34,13 @@ Les créateurs publient des photos ou vidéos floues ; les acheteurs paient pour
 
 - Flutter 3.x (`flutter --version`)
 - Fichier `google-services.json` (Android) et `GoogleService-Info.plist` (iOS) — fournis par Firebase
-- API `seeme-api` accessible
+- API `seemi-api` accessible
 
 ## Installation
 
 ```bash
-git clone https://github.com/ouattaraab/seeme.git
-cd seeme
+git clone https://github.com/ouattaraab/seemi.git
+cd seemi
 
 flutter pub get
 ```
