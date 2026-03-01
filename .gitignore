@@ -10,6 +10,10 @@ env/prod.json
 **/ios/firebase_app_id_file.json
 lib/firebase_options.dart
 
+# Release keystores - NEVER commit
+*.keystore
+*.jks
+
 # Miscellaneous
 *.class
 *.log
