@@ -49,27 +49,25 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       },
       child: CustomScrollView(
         slivers: [
-          // ── Header sticky ──────────────────────────────────────────────
+          // ── Header sticky ───────────────────────────────────────────────
           SliverAppBar(
             backgroundColor: AppColors.kBgBase,
             floating: true,
             snap: true,
             elevation: 0,
             toolbarHeight: 64,
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildHeader(),
-            ),
+            flexibleSpace: FlexibleSpaceBar(background: _buildHeader()),
           ),
           SliverList(
             delegate: SliverChildListDelegate([
               _buildBalanceSection(context),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               _buildPerformanceSection(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               _buildRecentContentSection(context),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               _buildRecentPaymentsSection(),
-              const SizedBox(height: 120), // bottom nav padding
+              const SizedBox(height: 120),
             ]),
           ),
         ],
@@ -84,18 +82,18 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       builder: (context, provider, _) {
         final user = provider.user;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.kScreenMargin, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           child: Row(
             children: [
-              // Logo SeeMi
+              // Logo circle
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: const BoxDecoration(
                   color: AppColors.kPrimary,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
               ),
               const SizedBox(width: 8),
               Text(
@@ -116,8 +114,12 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 ),
                 child: ClipOval(
                   child: user?.avatarUrl != null
-                      ? Image.network(user!.avatarUrl!, fit: BoxFit.cover,
-                          errorBuilder: (ctx, e, st) => _avatarFallback(user.firstName ?? 'U'))
+                      ? Image.network(
+                          user!.avatarUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, e, st) =>
+                              _avatarFallback(user.firstName ?? 'U'),
+                        )
                       : _avatarFallback(user?.firstName ?? 'U'),
                 ),
               ),
@@ -131,10 +133,13 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
   Widget _avatarFallback(String name) {
     return Container(
       color: AppColors.kPrimary,
-      child: Center(
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : 'U',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 16,
         ),
       ),
     );
@@ -144,123 +149,173 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
 
   Widget _buildBalanceSection(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.kScreenMargin),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Consumer2<WalletProvider, PayoutMethodProvider>(
         builder: (context, wallet, payout, _) {
           final hasPayoutMethod = payout.existingPayoutMethod?.isActive ?? false;
-          final canWithdraw = wallet.balance > 0 && hasPayoutMethod && !wallet.isWithdrawing;
+          final canWithdraw =
+              wallet.balance > 0 && hasPayoutMethod && !wallet.isWithdrawing;
           final balanceFcfa = wallet.balance ~/ 100;
 
           return Column(
             children: [
-              // Carte solde
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
+              // ── Balance card ────────────────────────────────────────────
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(32),
                   color: AppColors.kPrimary,
-                  borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Solde disponible',
-                      style: AppTextStyles.kBodyMedium.copyWith(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Balance
-                    wallet.isLoading
-                        ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                        : RichText(
-                            text: TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: _formatBalance(balanceFcfa),
-                                  style: const TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    color: Colors.white,
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -1,
-                                    height: 1.1,
-                                  ),
-                                ),
-                                const TextSpan(
-                                  text: ' FCFA',
-                                  style: TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    color: AppColors.kAccent,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
+                  child: Stack(
+                    children: [
+                      // Radial gradient accent top-right (opacity 10%)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              center: Alignment.topRight,
+                              radius: 1.2,
+                              colors: [
+                                AppColors.kAccent.withValues(alpha: 0.18),
+                                Colors.transparent,
                               ],
                             ),
                           ),
-                    const SizedBox(height: 24),
-                    // Bouton Retirer
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        key: const Key('btn-withdraw'),
-                        onPressed: canWithdraw
-                            ? () {
-                                wallet.clearWithdrawalError();
-                                showModalBottomSheet<void>(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: AppColors.kBgSurface,
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(AppSpacing.kRadiusXl),
-                                    ),
-                                  ),
-                                  builder: (_) => const WithdrawalBottomSheet(),
-                                );
-                              }
-                            : null,
-                        icon: const Icon(Icons.account_balance_wallet_rounded, size: 20),
-                        label: const Text('Retirer mes gains'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.kAccent,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: Colors.white.withValues(alpha: 0.2),
-                          disabledForegroundColor: Colors.white.withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
-                          ),
-                          textStyle: const TextStyle(
-                            fontFamily: 'Plus Jakarta Sans',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          elevation: 0,
                         ),
                       ),
-                    ),
-                  ],
+                      // Content
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Label
+                          Text(
+                            'SOLDE DISPONIBLE',
+                            style: TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              color: Colors.white.withValues(alpha: 0.80),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Amount
+                          wallet.isLoading
+                              ? const SizedBox(
+                                  height: 56,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      _fmt(balanceFcfa),
+                                      style: const TextStyle(
+                                        fontFamily: 'Plus Jakarta Sans',
+                                        color: Colors.white,
+                                        fontSize: 48,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -1,
+                                        height: 1.0,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        'FCFA',
+                                        style: TextStyle(
+                                          fontFamily: 'Plus Jakarta Sans',
+                                          color: AppColors.kAccent,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.0,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                          const SizedBox(height: 24),
+                          // Withdraw button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              key: const Key('btn-withdraw'),
+                              onPressed: canWithdraw
+                                  ? () {
+                                      wallet.clearWithdrawalError();
+                                      showModalBottomSheet<void>(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: AppColors.kBgSurface,
+                                        shape: const RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.vertical(
+                                            top: Radius.circular(32),
+                                          ),
+                                        ),
+                                        builder: (_) =>
+                                            const WithdrawalBottomSheet(),
+                                      );
+                                    }
+                                  : null,
+                              icon: const Icon(
+                                  Icons.account_balance_wallet_rounded,
+                                  size: 20),
+                              label: const Text('Retirer'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.kAccent,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor:
+                                    Colors.white.withValues(alpha: 0.20),
+                                disabledForegroundColor:
+                                    Colors.white.withValues(alpha: 0.50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppSpacing.kRadiusPill),
+                                ),
+                                textStyle: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                elevation: 0,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              // Bouton Uploader
+              // ── Upload button ───────────────────────────────────────────
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 58,
                 child: OutlinedButton.icon(
                   onPressed: () => context.push(RouteNames.kRouteUpload),
-                  icon: const Icon(Icons.add_circle_rounded, color: AppColors.kAccent, size: 24),
+                  icon: const Icon(
+                    Icons.add_circle_rounded,
+                    color: AppColors.kAccent,
+                    size: 24,
+                  ),
                   label: const Text('Uploader du contenu'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     backgroundColor: AppColors.kTextPrimary,
                     side: const BorderSide(color: AppColors.kAccent, width: 1.5),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.kRadiusPill),
                     ),
                     textStyle: const TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
@@ -277,27 +332,19 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     );
   }
 
-  String _formatBalance(int fcfa) {
-    if (fcfa == 0) return '0';
-    final str = fcfa.toString();
-    final buffer = StringBuffer();
-    final len = str.length;
-    for (var i = 0; i < len; i++) {
-      if (i > 0 && (len - i) % 3 == 0) buffer.write(',');
-      buffer.write(str[i]);
-    }
-    return buffer.toString();
-  }
-
-  // ─── Performance section ──────────────────────────────────────────────────
+  // ─── Performance section ─────────────────────────────────────────────────
 
   Widget _buildPerformanceSection() {
     return Consumer<ContentProvider>(
       builder: (context, provider, _) {
-        final totalViews = provider.myContents.fold(0, (s, c) => s + c.viewCount);
-        final totalSales = provider.myContents.fold(0, (s, c) => s + c.purchaseCount);
+        final totalViews =
+            provider.myContents.fold(0, (s, c) => s + c.viewCount);
+        final totalSales =
+            provider.myContents.fold(0, (s, c) => s + c.purchaseCount);
+        final loading = provider.isFetchingContents && provider.myContents.isEmpty;
+
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.kScreenMargin),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -307,10 +354,10 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 children: [
                   Expanded(
                     child: _StatCard(
-                      icon: Icons.visibility_outlined,
+                      icon: Icons.remove_red_eye_outlined,
                       iconColor: AppColors.kTextSecondary,
                       label: 'Total Vues',
-                      value: provider.isFetchingContents ? '…' : _formatBalance(totalViews),
+                      value: loading ? '…' : _fmt(totalViews),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -319,7 +366,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                       icon: Icons.credit_card_rounded,
                       iconColor: AppColors.kSuccess,
                       label: 'Total Ventes',
-                      value: provider.isFetchingContents ? '…' : _formatBalance(totalSales),
+                      value: loading ? '…' : _fmt(totalSales),
                     ),
                   ),
                 ],
@@ -331,39 +378,56 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     );
   }
 
-  // ─── Recent content section ───────────────────────────────────────────────
+  // ─── Recent content section ──────────────────────────────────────────────
 
   Widget _buildRecentContentSection(BuildContext context) {
     return Consumer<ContentProvider>(
       builder: (ctx, provider, _) {
         final contents = provider.myContents.take(10).toList();
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.kScreenMargin),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Contenus récents', style: AppTextStyles.kTitleLarge),
                   TextButton(
                     onPressed: () {},
-                    child: const Text('Voir tout'),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Voir tout',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.kPrimary,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             if (provider.isFetchingContents && contents.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: CircularProgressIndicator(color: AppColors.kPrimary),
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(color: AppColors.kPrimary),
+                ),
               )
             else if (contents.isEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.kScreenMargin, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Text(
                   'Aucun contenu publié',
-                  style: AppTextStyles.kBodyMedium.copyWith(color: AppColors.kTextSecondary),
+                  style: AppTextStyles.kBodyMedium
+                      .copyWith(color: AppColors.kTextSecondary),
                 ),
               )
             else
@@ -371,10 +435,10 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 height: 350,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.kScreenMargin),
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
                   itemCount: contents.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 12),
-                  itemBuilder: (context, i) => _ContentCard(content: contents[i]),
+                  separatorBuilder: (context, index) => const SizedBox(width: 16),
+                  itemBuilder: (_, i) => _ContentCard(content: contents[i]),
                 ),
               ),
           ],
@@ -383,49 +447,53 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     );
   }
 
-  // ─── Recent payments section ──────────────────────────────────────────────
+  // ─── Recent payments section ─────────────────────────────────────────────
 
   Widget _buildRecentPaymentsSection() {
     return Consumer<WalletProvider>(
       builder: (ctx, wallet, _) {
         final transactions = wallet.transactions.take(5).toList();
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.kScreenMargin),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('Paiements récents', style: AppTextStyles.kTitleLarge),
               const SizedBox(height: 12),
               if (wallet.isFetchingTransactions && transactions.isEmpty)
-                const Center(child: CircularProgressIndicator(color: AppColors.kPrimary))
+                const Center(
+                  child: CircularProgressIndicator(color: AppColors.kPrimary),
+                )
               else if (transactions.isEmpty)
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: AppColors.kBgSurface,
                     borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
-                    border: Border.all(color: AppColors.kBorder.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.kBorder.withValues(alpha: 0.3)),
                   ),
                   child: Center(
                     child: Text(
                       'Aucun paiement reçu',
-                      style: AppTextStyles.kBodyMedium.copyWith(color: AppColors.kTextSecondary),
+                      style: AppTextStyles.kBodyMedium
+                          .copyWith(color: AppColors.kTextSecondary),
                     ),
                   ),
                 )
               else
                 Container(
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: AppColors.kBgSurface,
                     borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
-                    border: Border.all(color: AppColors.kAccent.withValues(alpha: 0.15)),
+                    border: Border.all(
+                        color: AppColors.kAccent.withValues(alpha: 0.20)),
                   ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: transactions.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 72),
-                    itemBuilder: (context, i) => _PaymentRow(tx: transactions[i]),
+                  child: Column(
+                    children: transactions
+                        .map((tx) => _PaymentRow(tx: tx))
+                        .toList(),
                   ),
                 ),
             ],
@@ -433,6 +501,17 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
         );
       },
     );
+  }
+
+  String _fmt(int n) {
+    if (n == 0) return '0';
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
   }
 }
 
@@ -457,7 +536,7 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.kBgSurface,
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg), // 24px
         border: Border.all(color: AppColors.kBorder),
       ),
       child: Column(
@@ -467,11 +546,21 @@ class _StatCard extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: iconColor),
               const SizedBox(width: 6),
-              Text(label, style: AppTextStyles.kCaption.copyWith(fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTextStyles.kCaption
+                      .copyWith(fontWeight: FontWeight.w500),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(value, style: AppTextStyles.kHeadlineMedium.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            value,
+            style: AppTextStyles.kHeadlineMedium
+                .copyWith(fontWeight: FontWeight.w800),
+          ),
         ],
       ),
     );
@@ -492,20 +581,25 @@ class _ContentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
         child: Stack(
           children: [
-            // Image de fond
+            // Background image
             Positioned.fill(
               child: content.blurUrl != null
                   ? Image.network(
                       content.blurUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (ctx, e, st) => Container(color: AppColors.kBgElevated),
+                      errorBuilder: (ctx, e, st) =>
+                          Container(color: AppColors.kBgElevated),
                     )
                   : Container(
                       color: AppColors.kBgElevated,
-                      child: const Icon(Icons.image_outlined, size: 48, color: AppColors.kTextTertiary),
+                      child: const Icon(
+                        Icons.image_outlined,
+                        size: 48,
+                        color: AppColors.kTextTertiary,
+                      ),
                     ),
             ),
-            // Gradient overlay
+            // Gradient overlay: from-black/80 via-black/20 to-transparent
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -514,21 +608,21 @@ class _ContentCard extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.2),
-                      Colors.black.withValues(alpha: 0.8),
+                      Colors.black.withValues(alpha: 0.20),
+                      Colors.black.withValues(alpha: 0.80),
                     ],
                     stops: const [0.4, 0.6, 1.0],
                   ),
                 ),
               ),
             ),
-            // Info en bas
+            // Bottom info
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -540,31 +634,62 @@ class _ContentCard extends StatelessWidget {
                           _PriceBadge(price: content.price! ~/ 100),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
                       content.slug ?? 'Contenu #${content.id}',
                       style: const TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
                         color: Colors.white,
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
+                        height: 1.2,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.visibility_outlined, color: Colors.white70, size: 14),
+                        const Icon(Icons.visibility_outlined,
+                            color: Colors.white70, size: 14),
                         const SizedBox(width: 4),
-                        Text('${content.viewCount}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.shopping_cart_outlined, color: Colors.white70, size: 14),
+                        Text(
+                          '${content.viewCount}',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
+                        const SizedBox(width: 16),
+                        const Icon(Icons.shopping_cart_outlined,
+                            color: Colors.white70, size: 14),
                         const SizedBox(width: 4),
-                        Text('${content.purchaseCount} ventes', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                        Text(
+                          '${content.purchaseCount} ventes',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
                       ],
                     ),
                   ],
+                ),
+              ),
+            ),
+            // Share button — top-right
+            Positioned(
+              top: 16,
+              right: 16,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.20),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.25)),
+                ),
+                child: const Icon(
+                  Icons.share_rounded,
+                  color: Colors.white,
+                  size: 18,
                 ),
               ),
             ),
@@ -581,15 +706,21 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = switch (status) {
+      'active'   => 'Actif',
+      'pending'  => 'En attente',
+      'rejected' => 'Rejeté',
+      _          => status,
+    };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
+        color: Colors.white.withValues(alpha: 0.20),
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
       ),
       child: Text(
-        status == 'active' ? 'Actif' : status == 'pending' ? 'En attente' : status,
+        label,
         style: const TextStyle(
           fontFamily: 'Plus Jakarta Sans',
           color: Colors.white,
@@ -607,14 +738,15 @@ class _PriceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final formatted = _fmt(price);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.kAccent,
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
       ),
       child: Text(
-        '$price FCFA',
+        '$formatted FCFA',
         style: const TextStyle(
           fontFamily: 'Plus Jakarta Sans',
           color: Colors.white,
@@ -623,6 +755,17 @@ class _PriceBadge extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static String _fmt(int n) {
+    if (n == 0) return '0';
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
   }
 }
 
@@ -634,69 +777,97 @@ class _PaymentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCredit = tx.type == 'credit';
     final amount = tx.amount ~/ 100;
-    final sign = isCredit ? '+' : '-';
-    final color = isCredit ? AppColors.kSuccess : AppColors.kPrimary;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // Icône
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              isCredit ? Icons.south_west_rounded : Icons.north_east_rounded,
-              color: color,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Description
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 2),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
               children: [
-                Text(
-                  isCredit ? 'Paiement reçu' : 'Retrait',
-                  style: AppTextStyles.kBodyLarge.copyWith(fontWeight: FontWeight.w700),
+                // Icône rounded-full emerald
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.kSuccess.withValues(alpha: 0.10),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: AppColors.kSuccess,
+                    size: 22,
+                  ),
                 ),
-                Text(
-                  tx.description ?? tx.buyerEmail ?? '—',
-                  style: AppTextStyles.kCaption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 12),
+                // Description
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_fmt(amount)} FCFA',
+                        style: AppTextStyles.kBodyLarge
+                            .copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        tx.description ?? tx.buyerEmail ?? '—',
+                        style: AppTextStyles.kCaption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                // Right: payment method + time
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      tx.paymentMethod ?? '',
+                      style: AppTextStyles.kCaption.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.kTextPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      _timeAgo(tx.createdAt),
+                      style: AppTextStyles.kCaption.copyWith(fontSize: 11),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          // Montant + méthode
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$sign$amount',
-                style: TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  color: color,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                tx.paymentMethod ?? '',
-                style: AppTextStyles.kCaption.copyWith(fontSize: 11),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
+  }
+
+  static String _fmt(int n) {
+    if (n == 0) return '0';
+    final s = n.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return buf.toString();
+  }
+
+  static String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'À l\'instant';
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Il y a ${diff.inHours} h';
+    if (diff.inDays == 1) return 'Hier';
+    return 'Il y a ${diff.inDays} j';
   }
 }
