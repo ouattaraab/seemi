@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
-import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/content/data/public_content_repository.dart';
 import 'package:ppv_app/features/content/presentation/content_detail_provider.dart';
 import 'package:ppv_app/features/payment/presentation/payment_provider.dart';
@@ -59,7 +58,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       backgroundColor: AppColors.kBgBase,
       appBar: _buildAppBar(),
       body: Consumer2<ContentDetailProvider, PaymentProvider>(
-        builder: (context, contentProvider, paymentProvider, _) =>
+        builder: (context, contentProvider, paymentProvider, child) =>
             _buildBody(context, contentProvider, paymentProvider),
       ),
     );
@@ -73,8 +72,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       elevation: 0,
       centerTitle: true,
       automaticallyImplyLeading: false,
-      title: RichText(
-        text: const TextSpan(
+      title: const Text.rich(
+        TextSpan(
           style: TextStyle(
             fontFamily: 'Plus Jakarta Sans',
             fontSize: 20,
@@ -107,17 +106,12 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     ContentDetailProvider contentProvider,
     PaymentProvider paymentProvider,
   ) {
-    // Vérification paiement en cours
     if (paymentProvider.isCheckingReveal) {
-      return const _LoadingState(
-        message: 'Vérification du paiement...',
-      );
+      return const _LoadingState(message: 'Vérification du paiement…');
     }
-
     if (contentProvider.isLoading) {
-      return const _LoadingState(message: 'Chargement du contenu...');
+      return const _LoadingState(message: 'Chargement du contenu…');
     }
-
     if (contentProvider.error != null) {
       return _ErrorState(message: contentProvider.error!);
     }
@@ -131,15 +125,17 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           constraints: const BoxConstraints(maxWidth: 480),
           child: Column(
             children: [
-              // ── Card principale ──
+              // ── Card principale ──────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.kBgSurface,
-                  borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.kRadiusXl),
                   border: Border.all(color: AppColors.kBorder),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.kTextPrimary.withValues(alpha: 0.06),
+                      color:
+                          AppColors.kTextPrimary.withValues(alpha: 0.06),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -149,10 +145,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Image (floutée ou révélée)
                     _buildImageSection(content, paymentProvider),
-
-                    // Infos + actions
                     _buildInfoSection(context, content, paymentProvider),
                   ],
                 ),
@@ -160,10 +153,12 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
               const SizedBox(height: 24),
 
-              // ── Footer branding ──
-              Text(
+              // ── Footer branding ──────────────────────────────────────
+              const Text(
                 'Propulsé par SeeMi',
-                style: AppTextStyles.kCaption.copyWith(
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 12,
                   color: AppColors.kTextTertiary,
                   letterSpacing: 0.3,
                 ),
@@ -209,25 +204,27 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           // Badge "débloqué"
           if (paymentProvider.isPaid) ...[
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.kSuccess.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+                color: AppColors.kSuccess.withValues(alpha: 0.10),
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.kRadiusPill),
                 border: Border.all(
-                    color: AppColors.kSuccess.withValues(alpha: 0.30)),
+                    color: AppColors.kSuccess.withValues(alpha: 0.28)),
               ),
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.check_circle_rounded,
-                      color: AppColors.kSuccess, size: 14),
+                      color: AppColors.kSuccess, size: 13),
                   SizedBox(width: 5),
                   Text(
                     'CONTENU DÉBLOQUÉ',
                     style: TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       color: AppColors.kSuccess,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.8,
                     ),
@@ -235,18 +232,18 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
           ],
 
-          // Créateur
+          // ── Créateur + vues ──────────────────────────────────────────
           Row(
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: AppColors.kPrimary.withValues(alpha: 0.10),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Text(
@@ -256,54 +253,73 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                     style: const TextStyle(
                       fontFamily: 'Plus Jakarta Sans',
                       color: AppColors.kPrimary,
-                      fontSize: 13,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   content.creatorName,
-                  style: AppTextStyles.kBodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
+                  style: const TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.kTextPrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               // Compteur de vues
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.visibility_outlined,
-                      color: AppColors.kTextTertiary, size: 15),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${content.viewCount}',
-                    style: AppTextStyles.kCaption,
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.kBgElevated,
+                  borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.visibility_outlined,
+                        color: AppColors.kTextTertiary, size: 13),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${content.viewCount}',
+                      style: const TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.kTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Description
+          // ── Description ──────────────────────────────────────────────
           Text(
             paymentProvider.isPaid
                 ? 'Contenu débloqué avec succès !'
                 : 'Cette ${content.type == 'video' ? 'vidéo' : 'photo'} est verrouillée. Payez ${content.priceFcfa} FCFA pour la voir.',
-            style: AppTextStyles.kBodyMedium.copyWith(
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
               color: paymentProvider.isPaid
                   ? AppColors.kTextPrimary
                   : AppColors.kTextSecondary,
-              height: 1.5,
+              height: 1.55,
             ),
           ),
 
-          // Bouton téléchargement
+          // ── Téléchargement ───────────────────────────────────────────
           if (paymentProvider.isPaid &&
               paymentProvider.originalUrl != null) ...[
             const SizedBox(height: 16),
@@ -314,14 +330,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             ),
           ],
 
-          // Erreur paiement
+          // ── Erreur paiement ──────────────────────────────────────────
           if (paymentProvider.paymentFailed) ...[
             const SizedBox(height: 16),
-            _buildPaymentErrorBanner(context, content, paymentProvider),
+            _buildPaymentErrorBanner(
+                context, content, paymentProvider),
           ],
 
-          // Bouton payer
-          if (!paymentProvider.isPaid && !paymentProvider.paymentFailed) ...[
+          // ── Bouton payer ─────────────────────────────────────────────
+          if (!paymentProvider.isPaid &&
+              !paymentProvider.paymentFailed) ...[
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -339,7 +357,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                   backgroundColor: AppColors.kAccent,
                   foregroundColor: Colors.white,
                   elevation: 4,
-                  shadowColor: AppColors.kAccent.withValues(alpha: 0.35),
+                  shadowColor:
+                      AppColors.kAccent.withValues(alpha: 0.35),
                   shape: const StadiumBorder(),
                   textStyle: const TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
@@ -355,7 +374,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     );
   }
 
-  // ─── Erreur paiement ──────────────────────────────────────────────────────
+  // ─── Bannière erreur paiement ─────────────────────────────────────────────
 
   Widget _buildPaymentErrorBanner(
     BuildContext context,
@@ -367,21 +386,27 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       decoration: BoxDecoration(
         color: AppColors.kError.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
-        border: Border.all(color: AppColors.kError.withValues(alpha: 0.25)),
+        border: Border.all(
+            color: AppColors.kError.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.error_outline_rounded,
+              Icon(Icons.error_outline_rounded,
                   color: AppColors.kError, size: 18),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Le paiement n\'a pas abouti. Réessayez ou changez de moyen de paiement.',
-                  style: AppTextStyles.kCaption
-                      .copyWith(color: AppColors.kError),
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 13,
+                    color: AppColors.kError,
+                    height: 1.45,
+                  ),
                 ),
               ),
             ],
@@ -389,13 +414,17 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           const SizedBox(height: 12),
           OutlinedButton(
             key: const Key('btn-retry-payment'),
-            onPressed: () =>
-                _showPaymentDialog(context, content.slug, content.priceFcfa),
+            onPressed: () => _showPaymentDialog(
+                context, content.slug, content.priceFcfa),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.kError,
               side: BorderSide(
-                  color: AppColors.kError.withValues(alpha: 0.40)),
+                  color: AppColors.kError.withValues(alpha: 0.38)),
               shape: const StadiumBorder(),
+              textStyle: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontWeight: FontWeight.w700,
+              ),
             ),
             child: const Text('Réessayer'),
           ),
@@ -406,7 +435,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
   // ─── Dialog paiement ──────────────────────────────────────────────────────
 
-  void _showPaymentDialog(BuildContext context, String slug, int priceFcfa) {
+  void _showPaymentDialog(
+      BuildContext context, String slug, int priceFcfa) {
     context.read<PaymentProvider>().reset();
 
     final emailController = TextEditingController();
@@ -424,13 +454,15 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           child: Container(
             decoration: const BoxDecoration(
               color: AppColors.kBgSurface,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppSpacing.kRadiusXl)),
             ),
             padding: EdgeInsets.only(
               left: 24,
               right: 24,
               top: 12,
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 28,
+              bottom:
+                  MediaQuery.of(sheetContext).viewInsets.bottom + 28,
             ),
             child: Consumer<PaymentProvider>(
               builder: (consumerCtx, provider, child) {
@@ -453,7 +485,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                       // Handle
                       Center(
                         child: Container(
-                          width: 40,
+                          width: 36,
                           height: 4,
                           decoration: BoxDecoration(
                             color: AppColors.kBorder,
@@ -466,17 +498,25 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                       // Titre
                       const Text(
                         'Débloquer le contenu',
-                        style: AppTextStyles.kTitleLarge,
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.kTextPrimary,
+                          letterSpacing: -0.3,
+                        ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 4),
-                      // Prix mis en avant
+                      const SizedBox(height: 8),
+
+                      // Prix badge
                       Center(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 6),
                           decoration: BoxDecoration(
-                            color: AppColors.kAccent.withValues(alpha: 0.10),
+                            color:
+                                AppColors.kAccent.withValues(alpha: 0.10),
                             borderRadius: BorderRadius.circular(
                                 AppSpacing.kRadiusPill),
                             border: Border.all(
@@ -514,7 +554,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Téléphone (optionnel)
+                      // Téléphone
                       _SheetPillField(
                         controller: phoneController,
                         hintText: 'Téléphone Mobile Money (optionnel)',
@@ -528,13 +568,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                         Row(
                           children: [
                             const Icon(Icons.error_outline_rounded,
-                                color: AppColors.kError, size: 16),
+                                color: AppColors.kError, size: 15),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 provider.error!,
-                                style: AppTextStyles.kCaption
-                                    .copyWith(color: AppColors.kError),
+                                style: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 13,
+                                  color: AppColors.kError,
+                                ),
                               ),
                             ),
                           ],
@@ -551,17 +594,21 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                           onPressed: provider.isLoading
                               ? null
                               : () async {
-                                  if (!formKey.currentState!.validate()) return;
+                                  if (!formKey.currentState!.validate()) {
+                                    return;
+                                  }
                                   await consumerCtx
                                       .read<PaymentProvider>()
                                       .initiatePayment(
                                         slug: slug,
-                                        email: emailController.text.trim(),
+                                        email: emailController.text
+                                            .trim(),
                                         phone: phoneController.text
                                                 .trim()
                                                 .isEmpty
                                             ? null
-                                            : phoneController.text.trim(),
+                                            : phoneController.text
+                                                .trim(),
                                       );
                                 },
                           icon: provider.isLoading
@@ -573,18 +620,19 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.lock_open_rounded, size: 20),
+                              : const Icon(Icons.lock_open_rounded,
+                                  size: 20),
                           label: Text(
                             provider.isLoading
-                                ? 'Redirection...'
+                                ? 'Redirection…'
                                 : 'Payer avec Paystack',
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.kAccent,
                             foregroundColor: Colors.white,
                             elevation: 4,
-                            shadowColor:
-                                AppColors.kAccent.withValues(alpha: 0.35),
+                            shadowColor: AppColors.kAccent
+                                .withValues(alpha: 0.35),
                             shape: const StadiumBorder(),
                             textStyle: const TextStyle(
                               fontFamily: 'Plus Jakarta Sans',
@@ -609,7 +657,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   }
 }
 
-// ─── États génériques ─────────────────────────────────────────────────────────
+// ─── _LoadingState ────────────────────────────────────────────────────────────
 
 class _LoadingState extends StatelessWidget {
   final String message;
@@ -619,13 +667,29 @@ class _LoadingState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(color: AppColors.kPrimary),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.kPrimary.withValues(alpha: 0.08),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(
+                color: AppColors.kPrimary,
+                strokeWidth: 2.5,
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           Text(
             message,
-            style: AppTextStyles.kBodyMedium.copyWith(
+            style: const TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 14,
               color: AppColors.kTextSecondary,
             ),
           ),
@@ -634,6 +698,8 @@ class _LoadingState extends StatelessWidget {
     );
   }
 }
+
+// ─── _ErrorState ──────────────────────────────────────────────────────────────
 
 class _ErrorState extends StatelessWidget {
   final String message;
@@ -645,7 +711,7 @@ class _ErrorState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 80,
@@ -655,13 +721,16 @@ class _ErrorState extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.lock_outline_rounded,
-                  color: AppColors.kError, size: 40),
+                  color: AppColors.kError, size: 38),
             ),
             const SizedBox(height: 20),
             Text(
               message,
-              style: AppTextStyles.kBodyMedium.copyWith(
+              style: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 14,
                 color: AppColors.kTextSecondary,
+                height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
@@ -672,7 +741,7 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-// ─── Image floutée avec cadenas ───────────────────────────────────────────────
+// ─── _BlurredImageWithLock ────────────────────────────────────────────────────
 
 class _BlurredImageWithLock extends StatelessWidget {
   final String? blurPathUrl;
@@ -708,14 +777,14 @@ class _BlurredImageWithLock extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.20),
-                  Colors.black.withValues(alpha: 0.55),
+                  Colors.black.withValues(alpha: 0.18),
+                  Colors.black.withValues(alpha: 0.56),
                 ],
               ),
             ),
           ),
 
-          // Cadenas centré
+          // Cadenas + prix
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -768,6 +837,8 @@ class _BlurredImageWithLock extends StatelessWidget {
   }
 }
 
+// ─── _ImagePlaceholder ────────────────────────────────────────────────────────
+
 class _ImagePlaceholder extends StatelessWidget {
   const _ImagePlaceholder();
 
@@ -786,7 +857,7 @@ class _ImagePlaceholder extends StatelessWidget {
   }
 }
 
-// ─── Input pill pour le bottom sheet ─────────────────────────────────────────
+// ─── _SheetPillField ──────────────────────────────────────────────────────────
 
 class _SheetPillField extends StatelessWidget {
   final TextEditingController controller;
@@ -826,32 +897,38 @@ class _SheetPillField extends StatelessWidget {
         fillColor: AppColors.kBgElevated,
         prefixIcon: Padding(
           padding: const EdgeInsets.only(left: 16, right: 10),
-          child: Icon(prefixIcon,
-              color: AppColors.kTextSecondary, size: 20),
+          child:
+              Icon(prefixIcon, color: AppColors.kTextSecondary, size: 20),
         ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 48),
+        prefixIconConstraints:
+            const BoxConstraints(minWidth: 48),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
           borderSide: const BorderSide(color: AppColors.kBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
           borderSide: const BorderSide(color: AppColors.kBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
-          borderSide:
-              const BorderSide(color: AppColors.kPrimary, width: 1.5),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderSide: const BorderSide(
+              color: AppColors.kPrimary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
-          borderSide:
-              const BorderSide(color: AppColors.kError, width: 1.5),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderSide: const BorderSide(
+              color: AppColors.kError, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
-          borderSide:
-              const BorderSide(color: AppColors.kError, width: 1.5),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderSide: const BorderSide(
+              color: AppColors.kError, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
             horizontal: 20, vertical: 18),
