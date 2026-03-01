@@ -129,8 +129,8 @@ void main() {
       await tester.tap(find.text('Alice'));
       await tester.pump();
 
-      // Appuyer sur Envoyer
-      await tester.tap(find.textContaining('Envoyer'));
+      // Appuyer sur Envoyer (bouton avec compteur, ex: "Envoyer (1)")
+      await tester.tap(find.textContaining('Envoyer ('));
       await tester.pump();
 
       expect(mockRepo.lastSharedUrl, testShareUrl);
@@ -143,7 +143,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.text('Aucun contact avec numéro trouvé.'),
+        find.text('Aucun contact avec numéro disponible.'),
         findsOneWidget,
       );
     });
@@ -167,8 +167,8 @@ void main() {
       await tester.tap(find.text('Alice'));
       await tester.pump();
 
-      // Appuyer sur Envoyer
-      await tester.tap(find.textContaining('Envoyer'));
+      // Appuyer sur Envoyer (bouton avec compteur, ex: "Envoyer (1)")
+      await tester.tap(find.textContaining('Envoyer ('));
       await tester.pump();
 
       // SnackBar d'erreur visible

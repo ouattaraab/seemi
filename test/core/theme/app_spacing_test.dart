@@ -33,30 +33,44 @@ void main() {
       expect(AppSpacing.kRadiusSm, 8);
     });
 
-    test('kRadiusButton is 10', () {
-      expect(AppSpacing.kRadiusButton, 10);
+    test('kRadiusButton is 16', () {
+      expect(AppSpacing.kRadiusButton, 16);
     });
 
-    test('kRadiusMd is 12', () {
-      expect(AppSpacing.kRadiusMd, 12);
+    test('kRadiusMd is 16', () {
+      expect(AppSpacing.kRadiusMd, 16);
     });
 
-    test('kRadiusCta is 14', () {
-      expect(AppSpacing.kRadiusCta, 14);
+    test('kRadiusCta is 16', () {
+      expect(AppSpacing.kRadiusCta, 16);
     });
 
-    test('kRadiusLg is 16', () {
-      expect(AppSpacing.kRadiusLg, 16);
+    test('kRadiusLg is 24', () {
+      expect(AppSpacing.kRadiusLg, 24);
     });
 
-    test('kRadiusXl is 24', () {
-      expect(AppSpacing.kRadiusXl, 24);
+    test('kRadiusXl is 32', () {
+      expect(AppSpacing.kRadiusXl, 32);
+    });
+
+    test('kRadiusPill is 999', () {
+      expect(AppSpacing.kRadiusPill, 999);
+    });
+  });
+
+  group('AppSpacing - Touch Targets', () {
+    test('kButtonHeight is 56', () {
+      expect(AppSpacing.kButtonHeight, 56);
+    });
+
+    test('kButtonHeightSm is 48', () {
+      expect(AppSpacing.kButtonHeightSm, 48);
     });
   });
 
   group('AppSpacing - Screen Margins', () {
-    test('kScreenMargin is 16', () {
-      expect(AppSpacing.kScreenMargin, 16);
+    test('kScreenMargin is 20', () {
+      expect(AppSpacing.kScreenMargin, 20);
     });
   });
 }

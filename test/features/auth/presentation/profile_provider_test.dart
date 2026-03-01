@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ppv_app/features/auth/data/auth_repository.dart';
 import 'package:ppv_app/features/auth/data/tos_acceptance_model.dart';
@@ -17,34 +16,23 @@ class _MockAuthRepository implements AuthRepository {
   Exception? updateProfileError;
 
   @override
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(firebase.FirebaseAuthException error)
-        onVerificationFailed,
-    required void Function(firebase.PhoneAuthCredential credential)
-        onVerificationCompleted,
-    required void Function(String verificationId) onCodeAutoRetrievalTimeout,
-    int? forceResendingToken,
+  Future<RegisterResult> register({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    required String dateOfBirth,
+    required String password,
+    required String passwordConfirmation,
   }) async {
     throw UnimplementedError();
   }
 
   @override
-  Future<firebase.UserCredential> verifyOtp({
-    required String verificationId,
-    required String smsCode,
+  Future<LoginResult> login({
+    required String emailOrPhone,
+    required String password,
   }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<RegisterResult> register({String? firstName, String? lastName}) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<LoginResult> login() async {
     throw UnimplementedError();
   }
 

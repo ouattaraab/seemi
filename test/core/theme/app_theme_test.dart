@@ -7,102 +7,100 @@ void main() {
   late ThemeData theme;
 
   setUp(() {
-    theme = AppTheme.darkTheme;
+    theme = AppTheme.darkTheme; // alias for the cream light theme
   });
 
   group('AppTheme - ColorScheme', () {
-    test('brightness is dark', () {
-      expect(theme.colorScheme.brightness, Brightness.dark);
+    test('brightness is light', () {
+      expect(theme.colorScheme.brightness, Brightness.light);
     });
 
-    test('primary is kPrimary teal', () {
+    test('primary is kPrimary indigo', () {
       expect(theme.colorScheme.primary, AppColors.kPrimary);
     });
 
-    test('secondary is kAccentOrange', () {
-      expect(theme.colorScheme.secondary, AppColors.kAccentOrange);
+    test('secondary is kAccent amber', () {
+      expect(theme.colorScheme.secondary, AppColors.kAccent);
     });
 
-    test('tertiary is kAccentViolet', () {
-      expect(theme.colorScheme.tertiary, AppColors.kAccentViolet);
+    test('tertiary is kSuccess', () {
+      expect(theme.colorScheme.tertiary, AppColors.kSuccess);
     });
 
     test('error is kError', () {
       expect(theme.colorScheme.error, AppColors.kError);
     });
 
-    test('surface is kBgSurface', () {
-      expect(theme.colorScheme.surface, AppColors.kBgSurface);
+    test('surface is kBgBase', () {
+      expect(theme.colorScheme.surface, AppColors.kBgBase);
     });
   });
 
   group('AppTheme - Scaffold', () {
-    test('scaffoldBackgroundColor is kBgBase #0D0D0D', () {
+    test('scaffoldBackgroundColor is kBgBase', () {
       expect(theme.scaffoldBackgroundColor, AppColors.kBgBase);
     });
   });
 
   group('AppTheme - TextTheme', () {
-    test('displayLarge is 32px ExtraBold', () {
-      expect(theme.textTheme.displayLarge!.fontSize, 32);
+    test('displayLarge is 36px ExtraBold', () {
+      expect(theme.textTheme.displayLarge!.fontSize, 36);
       expect(theme.textTheme.displayLarge!.fontWeight, FontWeight.w800);
     });
 
-    test('headlineLarge is 24px Bold', () {
-      expect(theme.textTheme.headlineLarge!.fontSize, 24);
-      expect(theme.textTheme.headlineLarge!.fontWeight, FontWeight.w700);
+    test('headlineLarge is 28px ExtraBold', () {
+      expect(theme.textTheme.headlineLarge!.fontSize, 28);
+      expect(theme.textTheme.headlineLarge!.fontWeight, FontWeight.w800);
     });
 
-    test('headlineMedium is 20px SemiBold', () {
-      expect(theme.textTheme.headlineMedium!.fontSize, 20);
-      expect(theme.textTheme.headlineMedium!.fontWeight, FontWeight.w600);
+    test('headlineMedium is 22px Bold', () {
+      expect(theme.textTheme.headlineMedium!.fontSize, 22);
+      expect(theme.textTheme.headlineMedium!.fontWeight, FontWeight.w700);
     });
 
-    test('titleLarge is 17px SemiBold', () {
-      expect(theme.textTheme.titleLarge!.fontSize, 17);
-      expect(theme.textTheme.titleLarge!.fontWeight, FontWeight.w600);
+    test('titleLarge is 18px Bold', () {
+      expect(theme.textTheme.titleLarge!.fontSize, 18);
+      expect(theme.textTheme.titleLarge!.fontWeight, FontWeight.w700);
     });
 
-    test('bodyLarge is 15px Regular with height 1.5', () {
-      expect(theme.textTheme.bodyLarge!.fontSize, 15);
-      expect(theme.textTheme.bodyLarge!.fontWeight, FontWeight.w400);
-      expect(theme.textTheme.bodyLarge!.height, 1.5);
+    test('bodyLarge is 16px Medium', () {
+      expect(theme.textTheme.bodyLarge!.fontSize, 16);
+      expect(theme.textTheme.bodyLarge!.fontWeight, FontWeight.w500);
     });
 
-    test('bodyMedium is 14px Regular with height 1.5', () {
-      expect(theme.textTheme.bodyMedium!.fontSize, 14);
+    test('bodyMedium is 15px Regular', () {
+      expect(theme.textTheme.bodyMedium!.fontSize, 15);
       expect(theme.textTheme.bodyMedium!.fontWeight, FontWeight.w400);
-      expect(theme.textTheme.bodyMedium!.height, 1.5);
     });
 
-    test('labelLarge is 13px SemiBold', () {
-      expect(theme.textTheme.labelLarge!.fontSize, 13);
-      expect(theme.textTheme.labelLarge!.fontWeight, FontWeight.w600);
+    test('labelLarge is 15px Bold', () {
+      expect(theme.textTheme.labelLarge!.fontSize, 15);
+      expect(theme.textTheme.labelLarge!.fontWeight, FontWeight.w700);
     });
 
-    test('bodySmall (caption) is 12px Regular', () {
-      expect(theme.textTheme.bodySmall!.fontSize, 12);
+    test('bodySmall (caption) is 13px Regular', () {
+      expect(theme.textTheme.bodySmall!.fontSize, 13);
       expect(theme.textTheme.bodySmall!.fontWeight, FontWeight.w400);
     });
   });
 
   group('AppTheme - Button Heights', () {
-    test('elevated button has min height 48dp', () {
+    test('elevated button has min height 56dp', () {
       final style = theme.elevatedButtonTheme.style!;
       final minSize = style.minimumSize!.resolve({})!;
-      expect(minSize.height, 48);
+      expect(minSize.height, 56);
     });
 
-    test('filled button has min height 48dp', () {
+    test('filled button has min height 56dp', () {
       final style = theme.filledButtonTheme.style!;
       final minSize = style.minimumSize!.resolve({})!;
-      expect(minSize.height, 48);
+      expect(minSize.height, 56);
     });
 
-    test('outlined button has min height 48dp', () {
+    test('outlined button has min height 56dp', () {
       final style = theme.outlinedButtonTheme.style!;
       final minSize = style.minimumSize!.resolve({})!;
-      expect(minSize.height, 48);
+      expect(minSize.height, 56);
     });
   });
 
@@ -111,40 +109,40 @@ void main() {
       expect(theme.cardTheme.color, AppColors.kBgSurface);
     });
 
-    test('card has rounded corners 16dp', () {
+    test('card has rounded corners 32dp', () {
       final shape = theme.cardTheme.shape as RoundedRectangleBorder;
       final radius = (shape.borderRadius as BorderRadius).topLeft;
-      expect(radius.x, 16);
+      expect(radius.x, 32);
     });
   });
 
   group('AppTheme - Input Decoration', () {
-    test('input is filled with kBgElevated', () {
+    test('input is filled with kBgSurface', () {
       expect(theme.inputDecorationTheme.filled, true);
-      expect(theme.inputDecorationTheme.fillColor, AppColors.kBgElevated);
+      expect(theme.inputDecorationTheme.fillColor, AppColors.kBgSurface);
     });
 
-    test('focused border is teal', () {
+    test('focused border is kAccent amber', () {
       final focusedBorder =
           theme.inputDecorationTheme.focusedBorder as OutlineInputBorder;
-      expect(focusedBorder.borderSide.color, AppColors.kPrimary);
+      expect(focusedBorder.borderSide.color, AppColors.kAccent);
     });
   });
 
   group('AppTheme - AppBar', () {
-    test('appbar is transparent', () {
-      expect(theme.appBarTheme.backgroundColor, Colors.transparent);
+    test('appbar background is kBgBase', () {
+      expect(theme.appBarTheme.backgroundColor, AppColors.kBgBase);
     });
 
-    test('appbar title is centered', () {
-      expect(theme.appBarTheme.centerTitle, true);
+    test('appbar title is not centered', () {
+      expect(theme.appBarTheme.centerTitle, false);
     });
   });
 
   group('AppTheme - Bottom Navigation', () {
-    test('selected item color is teal', () {
-      expect(theme.bottomNavigationBarTheme.selectedItemColor,
-          AppColors.kPrimary);
+    test('selected item color is kPrimary indigo', () {
+      expect(
+          theme.bottomNavigationBarTheme.selectedItemColor, AppColors.kPrimary);
     });
   });
 
@@ -153,16 +151,16 @@ void main() {
       expect(theme.dialogTheme.backgroundColor, AppColors.kBgSurface);
     });
 
-    test('dialog has radius 24dp', () {
+    test('dialog has radius 32dp', () {
       final shape = theme.dialogTheme.shape as RoundedRectangleBorder;
       final radius = (shape.borderRadius as BorderRadius).topLeft;
-      expect(radius.x, 24);
+      expect(radius.x, 32);
     });
   });
 
   group('AppTheme - SnackBar', () {
-    test('snackbar background is kBgOverlay', () {
-      expect(theme.snackBarTheme.backgroundColor, AppColors.kBgOverlay);
+    test('snackbar background is kTextPrimary', () {
+      expect(theme.snackBarTheme.backgroundColor, AppColors.kTextPrimary);
     });
   });
 

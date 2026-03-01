@@ -15,7 +15,7 @@ void main() {
   group('DesignShowcaseScreen - Sections', () {
     testWidgets('renders AppBar with title', (tester) async {
       await tester.pumpWidget(createTestWidget());
-      expect(find.text('PPV Design System'), findsOneWidget);
+      expect(find.text('SeeMi Design System'), findsOneWidget);
     });
 
     testWidgets('renders palette section', (tester) async {
@@ -33,7 +33,8 @@ void main() {
         const Offset(0, -300),
       );
       expect(find.text('Typographie'), findsOneWidget);
-      expect(find.text('Display Large 32px'), findsOneWidget);
+      // 'Display Large 32px' may be just below the fold after dragging to Typographie
+      expect(find.text('Display Large 32px', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets('renders buttons section title', (tester) async {
@@ -104,7 +105,7 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       final context = tester.element(find.byType(Scaffold).first);
       expect(Theme.of(context).scaffoldBackgroundColor,
-          const Color(0xFF0D0D0D));
+          const Color(0xFFFDFBF7)); // kBgBase — crème chaud
     });
   });
 }

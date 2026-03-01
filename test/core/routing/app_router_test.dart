@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,23 +14,23 @@ import 'package:ppv_app/features/auth/presentation/auth_provider.dart';
 
 class _MockAuthRepository implements AuthRepository {
   @override
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(firebase.FirebaseAuthException error) onVerificationFailed,
-    required void Function(firebase.PhoneAuthCredential credential) onVerificationCompleted,
-    required void Function(String verificationId) onCodeAutoRetrievalTimeout,
-    int? forceResendingToken,
-  }) async => throw UnimplementedError();
+  Future<RegisterResult> register({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    required String dateOfBirth,
+    required String password,
+    required String passwordConfirmation,
+  }) async =>
+      throw UnimplementedError();
 
   @override
-  Future<firebase.UserCredential> verifyOtp({required String verificationId, required String smsCode}) async => throw UnimplementedError();
-
-  @override
-  Future<RegisterResult> register({String? firstName, String? lastName}) async => throw UnimplementedError();
-
-  @override
-  Future<LoginResult> login() async => throw UnimplementedError();
+  Future<LoginResult> login({
+    required String emailOrPhone,
+    required String password,
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<void> refreshToken() async => throw UnimplementedError();
@@ -40,13 +39,20 @@ class _MockAuthRepository implements AuthRepository {
   Future<void> logout() async => throw UnimplementedError();
 
   @override
-  Future<UserModel> submitKyc({required String firstName, required String lastName, required String dateOfBirth, required File document}) async => throw UnimplementedError();
+  Future<UserModel> submitKyc({
+    required String firstName,
+    required String lastName,
+    required String dateOfBirth,
+    required File document,
+  }) async =>
+      throw UnimplementedError();
 
   @override
   Future<UserModel> getProfile() async => throw UnimplementedError();
 
   @override
-  Future<TosAcceptanceModel> acceptTos({required String type}) async => throw UnimplementedError();
+  Future<TosAcceptanceModel> acceptTos({required String type}) async =>
+      throw UnimplementedError();
 
   @override
   Future<UserModel> updateProfile({
@@ -103,10 +109,10 @@ void main() {
       );
     });
 
-    test('les routes définies incluent les 12 paths requis', () {
+    test('les routes définies incluent les 11 paths requis', () {
       final routes = appRouter.router.configuration.routes;
       // 7 from Story 2.1 + 1 KYC + 1 TOS + 1 PayoutMethod + 1 Upload (Story 3.1) + 1 DesignShowcase + 1 ContentViewer (Story 4.4)
-      expect(routes.length, 12);
+      expect(routes.length, 11);
     });
 
     test('kRouteContentViewer est /c/:slug', () {
@@ -137,9 +143,8 @@ void main() {
       );
       await tester.pump();
 
-      // Le splash screen affiche 'PPV' et redirige après 2s
-      // pump() au lieu de pumpAndSettle() car le splash a un timer de 2s
-      expect(find.text('PPV'), findsOneWidget);
+      // Le splash screen affiche 'SeeMi'
+      expect(find.text('SeeMi'), findsOneWidget);
     });
 
     testWidgets('design showcase est accessible', (tester) async {
@@ -155,7 +160,7 @@ void main() {
       appRouter.router.go(RouteNames.kRouteDesignShowcase);
       await tester.pumpAndSettle();
 
-      expect(find.text('PPV Design System'), findsOneWidget);
+      expect(find.text('SeeMi Design System'), findsOneWidget);
     });
 
     testWidgets('onboarding screen est accessible', (tester) async {
@@ -188,17 +193,17 @@ void main() {
       appRouter.router.go(RouteNames.kRouteLogin);
       await tester.pumpAndSettle();
 
-      expect(find.text('Connexion'), findsOneWidget);
       expect(find.text('Se connecter'), findsOneWidget);
+      expect(find.text('Connectez-vous à votre compte.'), findsOneWidget);
     });
   });
 
   group('AppRouter - Deep Linking (Story 4.4)', () {
-    test('route /c/:slug est enregistrée dans le routeur (12 routes au total)',
+    test('route /c/:slug est enregistrée dans le routeur (11 routes au total)',
         () {
       final appRouter = AppRouter();
-      // Le compte de 12 routes inclut la route deep link /c/:slug (Story 4.4)
-      expect(appRouter.router.configuration.routes.length, 12);
+      // Le compte de 11 routes inclut la route deep link /c/:slug (Story 4.4)
+      expect(appRouter.router.configuration.routes.length, 11);
     });
 
     test('guard autorise les chemins /c/ sans token (startsWith)', () {
@@ -263,8 +268,8 @@ void main() {
       appRouter.router.go(RouteNames.kRouteHome);
       await tester.pumpAndSettle();
 
-      expect(find.text('Connexion'), findsOneWidget);
       expect(find.text('Se connecter'), findsOneWidget);
+      expect(find.text('Connectez-vous à votre compte.'), findsOneWidget);
     });
 
     testWidgets('routes publiques accessibles sans token', (tester) async {

@@ -22,7 +22,7 @@ void main() {
     testWidgets('displays success message', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      expect(find.text('Contenu publié avec succès !'), findsOneWidget);
+      expect(find.text('Contenu publié !'), findsOneWidget);
     });
 
     testWidgets('displays copy button', (tester) async {
@@ -81,7 +81,7 @@ void main() {
     testWidgets('displays success icon', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
     });
   });
 }

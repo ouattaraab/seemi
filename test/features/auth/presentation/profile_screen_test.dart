@@ -1,7 +1,5 @@
-import 'dart:async';
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -14,42 +12,26 @@ import 'package:ppv_app/features/auth/presentation/screens/profile_screen.dart';
 
 class _MockAuthRepository implements AuthRepository {
   UserModel? profileToReturn;
-  UserModel? updatedProfileToReturn;
-  Exception? getProfileError;
-  Exception? updateProfileError;
-  bool updateProfileCalled = false;
   bool logoutCalled = false;
-  Completer<UserModel>? getProfileCompleter;
 
   @override
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(firebase.FirebaseAuthException error)
-        onVerificationFailed,
-    required void Function(firebase.PhoneAuthCredential credential)
-        onVerificationCompleted,
-    required void Function(String verificationId) onCodeAutoRetrievalTimeout,
-    int? forceResendingToken,
+  Future<RegisterResult> register({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    required String dateOfBirth,
+    required String password,
+    required String passwordConfirmation,
   }) async {
     throw UnimplementedError();
   }
 
   @override
-  Future<firebase.UserCredential> verifyOtp({
-    required String verificationId,
-    required String smsCode,
+  Future<LoginResult> login({
+    required String emailOrPhone,
+    required String password,
   }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<RegisterResult> register({String? firstName, String? lastName}) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<LoginResult> login() async {
     throw UnimplementedError();
   }
 
@@ -75,8 +57,6 @@ class _MockAuthRepository implements AuthRepository {
 
   @override
   Future<UserModel> getProfile() async {
-    if (getProfileCompleter != null) return getProfileCompleter!.future;
-    if (getProfileError != null) throw getProfileError!;
     return profileToReturn ??
         const UserModel(
           id: 1,
@@ -100,18 +80,7 @@ class _MockAuthRepository implements AuthRepository {
     String? lastName,
     File? avatar,
   }) async {
-    updateProfileCalled = true;
-    if (updateProfileError != null) throw updateProfileError!;
-    return updatedProfileToReturn ??
-        UserModel(
-          id: 1,
-          phone: '+2250701020304',
-          firstName: firstName ?? 'Aminata',
-          lastName: lastName ?? 'Koné',
-          role: 'creator',
-          kycStatus: 'approved',
-          isActive: true,
-        );
+    throw UnimplementedError();
   }
 
   @override
@@ -149,14 +118,12 @@ void main() {
   }
 
   group('ProfileScreen', () {
-    testWidgets('displays user name, phone, and avatar placeholder',
-        (tester) async {
+    testWidgets('displays user name and phone', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
       expect(find.text('Aminata Koné'), findsOneWidget);
       expect(find.text('+2250701020304'), findsOneWidget);
-      expect(find.byIcon(Icons.person), findsOneWidget);
     });
 
     testWidgets('displays KYC approved badge', (tester) async {
@@ -173,7 +140,8 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('KYC vérifié'), findsOneWidget);
+      // label.toUpperCase() renders 'Pro Créateur' as 'PRO CRÉATEUR'
+      expect(find.text('PRO CRÉATEUR'), findsOneWidget);
     });
 
     testWidgets('displays KYC pending badge', (tester) async {
@@ -190,142 +158,24 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('KYC en attente'), findsOneWidget);
+      // label.toUpperCase() renders 'KYC en attente' as 'KYC EN ATTENTE'
+      expect(find.text('KYC EN ATTENTE'), findsOneWidget);
     });
 
-    testWidgets('displays Modifier le profil button', (tester) async {
+    testWidgets('displays Se déconnecter button', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('Modifier le profil'), findsOneWidget);
+      expect(find.text('Se déconnecter'), findsOneWidget);
     });
 
-    testWidgets('tapping Modifier opens edit form', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Modifier le profil'));
-      await tester.pump();
-
-      // Form fields should appear
-      expect(find.text('Enregistrer'), findsOneWidget);
-      expect(find.text('Annuler'), findsOneWidget);
-    });
-
-    testWidgets('phone field is disabled in edit mode', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Modifier le profil'));
-      await tester.pump();
-
-      // Find phone TextFormField — it should be disabled
-      final phoneFinder = find.widgetWithText(TextFormField, '+2250701020304');
-      expect(phoneFinder, findsOneWidget);
-
-      final phoneField = tester.widget<TextFormField>(phoneFinder);
-      expect(phoneField.enabled, false);
-    });
-
-    testWidgets('submitting form calls updateProfile', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      // Enter edit mode
-      await tester.tap(find.text('Modifier le profil'));
-      await tester.pump();
-
-      // Tap Enregistrer
-      await tester.tap(find.text('Enregistrer'));
-      await tester.pumpAndSettle();
-
-      expect(mockRepository.updateProfileCalled, true);
-    });
-
-    testWidgets('shows success SnackBar after update', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Modifier le profil'));
-      await tester.pump();
-
-      await tester.tap(find.text('Enregistrer'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Profil mis à jour avec succès'), findsOneWidget);
-    });
-
-    testWidgets('shows error SnackBar on update failure', (tester) async {
-      mockRepository.updateProfileError = Exception('Server error');
-
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Modifier le profil'));
-      await tester.pump();
-
-      await tester.tap(find.text('Enregistrer'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Erreur lors de la mise à jour du profil.'),
-          findsOneWidget);
-    });
-
-    testWidgets('shows loading indicator when profile is loading',
-        (tester) async {
-      // Hold the future open so loading state is observable
-      mockRepository.getProfileCompleter = Completer<UserModel>();
-
-      await tester.pumpWidget(createTestWidget());
-      await tester.pump(); // triggers addPostFrameCallback → loadProfile()
-      await tester.pump(); // rebuild with isLoading=true
-
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-
-      // Complete to avoid dangling future
-      mockRepository.getProfileCompleter!.complete(const UserModel(
-        id: 1,
-        phone: '+2250701020304',
-        firstName: 'Aminata',
-        lastName: 'Koné',
-        role: 'creator',
-        kycStatus: 'approved',
-        isActive: true,
-      ));
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('Annuler button exits edit mode', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      // Enter edit mode
-      await tester.tap(find.text('Modifier le profil'));
-      await tester.pump();
-      expect(find.text('Enregistrer'), findsOneWidget);
-
-      // Cancel
-      await tester.tap(find.text('Annuler'));
-      await tester.pump();
-
-      // Back to view mode
-      expect(find.text('Modifier le profil'), findsOneWidget);
-      expect(find.text('Enregistrer'), findsNothing);
-    });
-
-    testWidgets('Déconnexion button is present', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Déconnexion'), findsOneWidget);
-    });
-
-    testWidgets('tapping Déconnexion calls logout and navigates to login',
+    testWidgets('tapping Se déconnecter calls logout and navigates to login',
         (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Déconnexion'));
+      await tester.ensureVisible(find.text('Se déconnecter'));
+      await tester.tap(find.text('Se déconnecter'));
       await tester.pumpAndSettle();
 
       expect(mockRepository.logoutCalled, true);
@@ -347,6 +197,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Utilisateur'), findsOneWidget);
+    });
+
+    testWidgets('displays menu items', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mot de passe & Sécurité'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Contacter le support'), findsOneWidget);
     });
   });
 }

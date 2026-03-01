@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ppv_app/features/auth/data/auth_remote_datasource.dart';
 import 'package:ppv_app/features/auth/data/auth_repository.dart';
@@ -28,9 +27,6 @@ class _CapturingDio extends Fake implements Dio {
   }
 }
 
-// Fake FirebaseAuth — évite l'initialisation Firebase
-class _FakeFirebaseAuth extends Fake implements firebase.FirebaseAuth {}
-
 // Fake SecureStorageService — non utilisé dans registerFcmToken
 class _FakeSecureStorage extends Fake implements SecureStorageService {}
 
@@ -43,7 +39,6 @@ void main() {
       fakeDio = _CapturingDio();
       dataSource = AuthRemoteDataSource(
         dio: fakeDio,
-        firebaseAuth: _FakeFirebaseAuth(),
       );
     });
 
@@ -57,7 +52,7 @@ void main() {
       );
     });
 
-    test('propage une Exception si DioException reçue', () async {
+    test('ignore silencieusement une DioException (best-effort)', () async {
       fakeDio.errorToThrow = DioException(
         requestOptions: RequestOptions(path: '/profile/fcm-token'),
         response: Response(
@@ -68,10 +63,8 @@ void main() {
         type: DioExceptionType.badResponse,
       );
 
-      expect(
-        () async => dataSource.registerFcmToken('bad-token'),
-        throwsA(isA<Exception>()),
-      );
+      // registerFcmToken est best-effort : ne doit pas propager l'exception
+      await dataSource.registerFcmToken('bad-token');
     });
   });
 
@@ -80,7 +73,6 @@ void main() {
       final fakeDio = _CapturingDio();
       final dataSource = AuthRemoteDataSource(
         dio: fakeDio,
-        firebaseAuth: _FakeFirebaseAuth(),
       );
       final repository = AuthRepository(
         dataSource: dataSource,

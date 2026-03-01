@@ -4,70 +4,66 @@ import 'package:ppv_app/core/theme/app_colors.dart';
 
 void main() {
   group('AppColors - Backgrounds', () {
-    test('kBgBase is #0D0D0D', () {
-      expect(AppColors.kBgBase, const Color(0xFF0D0D0D));
+    test('kBgBase is cream #FDFBF7', () {
+      expect(AppColors.kBgBase, const Color(0xFFFDFBF7));
     });
 
-    test('kBgSurface is #1A1A1A', () {
-      expect(AppColors.kBgSurface, const Color(0xFF1A1A1A));
+    test('kBgSurface is white #FFFFFF', () {
+      expect(AppColors.kBgSurface, const Color(0xFFFFFFFF));
     });
 
-    test('kBgElevated is #242424', () {
-      expect(AppColors.kBgElevated, const Color(0xFF242424));
+    test('kBgElevated is #F3F4F6', () {
+      expect(AppColors.kBgElevated, const Color(0xFFF3F4F6));
     });
 
-    test('kBgOverlay is #2E2E2E', () {
-      expect(AppColors.kBgOverlay, const Color(0xFF2E2E2E));
-    });
-  });
-
-  group('AppColors - Primary Teal', () {
-    test('kPrimary is #00BFA5', () {
-      expect(AppColors.kPrimary, const Color(0xFF00BFA5));
-    });
-
-    test('kPrimaryLight is #5DF2D6', () {
-      expect(AppColors.kPrimaryLight, const Color(0xFF5DF2D6));
-    });
-
-    test('kPrimaryDark is #008C7A', () {
-      expect(AppColors.kPrimaryDark, const Color(0xFF008C7A));
-    });
-
-    test('kPrimarySurface has alpha ~0.12', () {
-      expect(AppColors.kPrimarySurface.a, closeTo(0.12, 0.02));
+    test('kBgOverlay is #F1F5F9', () {
+      expect(AppColors.kBgOverlay, const Color(0xFFF1F5F9));
     });
   });
 
-  group('AppColors - Accent Orange', () {
-    test('kAccentOrange is #FF8F00', () {
-      expect(AppColors.kAccentOrange, const Color(0xFFFF8F00));
+  group('AppColors - Primary Indigo', () {
+    test('kPrimary is #4338CA', () {
+      expect(AppColors.kPrimary, const Color(0xFF4338CA));
     });
 
-    test('kAccentOrangeLight is #FFC046', () {
-      expect(AppColors.kAccentOrangeLight, const Color(0xFFFFC046));
+    test('kPrimaryLight is #6366F1', () {
+      expect(AppColors.kPrimaryLight, const Color(0xFF6366F1));
     });
 
-    test('kAccentOrangeDark is #C56200', () {
-      expect(AppColors.kAccentOrangeDark, const Color(0xFFC56200));
+    test('kPrimaryDark is #3730A3', () {
+      expect(AppColors.kPrimaryDark, const Color(0xFF3730A3));
     });
 
-    test('kAccentOrangeSurface has alpha ~0.12', () {
-      expect(AppColors.kAccentOrangeSurface.a, closeTo(0.12, 0.02));
+    test('kPrimarySurface has alpha ~0.10', () {
+      expect(AppColors.kPrimarySurface.a, closeTo(0.10, 0.02));
+    });
+  });
+
+  group('AppColors - Accent Amber', () {
+    test('kAccent is #F59E0B', () {
+      expect(AppColors.kAccent, const Color(0xFFF59E0B));
+    });
+
+    test('kAccentLight is #FBBF24', () {
+      expect(AppColors.kAccentLight, const Color(0xFFFBBF24));
+    });
+
+    test('kAccentDark is #D97706', () {
+      expect(AppColors.kAccentDark, const Color(0xFFD97706));
     });
   });
 
   group('AppColors - Accent Violet', () {
-    test('kAccentViolet is #B388FF', () {
-      expect(AppColors.kAccentViolet, const Color(0xFFB388FF));
+    test('kAccentViolet is #8B5CF6', () {
+      expect(AppColors.kAccentViolet, const Color(0xFF8B5CF6));
     });
 
-    test('kAccentVioletLight is #E7B9FF', () {
-      expect(AppColors.kAccentVioletLight, const Color(0xFFE7B9FF));
+    test('kAccentVioletLight is #A78BFA', () {
+      expect(AppColors.kAccentVioletLight, const Color(0xFFA78BFA));
     });
 
-    test('kAccentVioletDark is #7C4DFF', () {
-      expect(AppColors.kAccentVioletDark, const Color(0xFF7C4DFF));
+    test('kAccentVioletDark is #7C3AED', () {
+      expect(AppColors.kAccentVioletDark, const Color(0xFF7C3AED));
     });
 
     test('kAccentVioletSurface has alpha ~0.10', () {
@@ -76,48 +72,66 @@ void main() {
   });
 
   group('AppColors - Semantic', () {
-    test('kSuccess is #4CAF50', () {
-      expect(AppColors.kSuccess, const Color(0xFF4CAF50));
+    test('kSuccess is #10B981', () {
+      expect(AppColors.kSuccess, const Color(0xFF10B981));
     });
 
-    test('kWarning is #FFC107', () {
-      expect(AppColors.kWarning, const Color(0xFFFFC107));
+    test('kWarning is #F59E0B', () {
+      expect(AppColors.kWarning, const Color(0xFFF59E0B));
     });
 
-    test('kError is #EF5350', () {
-      expect(AppColors.kError, const Color(0xFFEF5350));
+    test('kError is #EF4444', () {
+      expect(AppColors.kError, const Color(0xFFEF4444));
     });
 
-    test('kInfo is #29B6F6', () {
-      expect(AppColors.kInfo, const Color(0xFF29B6F6));
+    test('kInfo is #3B82F6', () {
+      expect(AppColors.kInfo, const Color(0xFF3B82F6));
     });
   });
 
   group('AppColors - Text', () {
-    test('kTextPrimary is white', () {
-      expect(AppColors.kTextPrimary, const Color(0xFFFFFFFF));
+    test('kTextPrimary is near-black #0B1120', () {
+      expect(AppColors.kTextPrimary, const Color(0xFF0B1120));
     });
 
-    test('kTextSecondary has alpha ~0.70', () {
-      expect(AppColors.kTextSecondary.a, closeTo(0.70, 0.02));
+    test('kTextSecondary is #64748B', () {
+      expect(AppColors.kTextSecondary, const Color(0xFF64748B));
     });
 
-    test('kTextTertiary has alpha ~0.50', () {
-      expect(AppColors.kTextTertiary.a, closeTo(0.50, 0.02));
+    test('kTextTertiary is #94A3B8', () {
+      expect(AppColors.kTextTertiary, const Color(0xFF94A3B8));
     });
 
-    test('kTextDisabled has alpha ~0.30', () {
-      expect(AppColors.kTextDisabled.a, closeTo(0.30, 0.02));
+    test('kTextDisabled is #94A3B8', () {
+      expect(AppColors.kTextDisabled, const Color(0xFF94A3B8));
     });
   });
 
   group('AppColors - Borders & Dividers', () {
-    test('kOutline has alpha ~0.12', () {
-      expect(AppColors.kOutline.a, closeTo(0.12, 0.02));
+    test('kOutline is #E2E8F0', () {
+      expect(AppColors.kOutline, const Color(0xFFE2E8F0));
     });
 
-    test('kDivider has alpha ~0.08', () {
-      expect(AppColors.kDivider.a, closeTo(0.08, 0.02));
+    test('kBorder is #E2E8F0', () {
+      expect(AppColors.kBorder, const Color(0xFFE2E8F0));
+    });
+
+    test('kDivider is #E2E8F0', () {
+      expect(AppColors.kDivider, const Color(0xFFE2E8F0));
+    });
+  });
+
+  group('AppColors - Compat aliases', () {
+    test('kAccentOrange equals kAccent', () {
+      expect(AppColors.kAccentOrange, AppColors.kAccent);
+    });
+
+    test('kAccentOrangeLight equals kAccentLight', () {
+      expect(AppColors.kAccentOrangeLight, AppColors.kAccentLight);
+    });
+
+    test('kAccentOrangeDark equals kAccentDark', () {
+      expect(AppColors.kAccentOrangeDark, AppColors.kAccentDark);
     });
   });
 }

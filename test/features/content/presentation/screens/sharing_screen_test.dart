@@ -88,12 +88,13 @@ void main() {
       expect(mockShareRepo.sharedUrls.first, testShareUrl);
     });
 
-    testWidgets('Partager button shows snackbar after sharing', (tester) async {
+    testWidgets('Partager button calls ShareRepository', (tester) async {
       await tester.pumpWidget(buildScreen());
       await tester.tap(find.text('Partager'));
       await tester.pump();
 
-      expect(find.text('Lien partagé !'), findsOneWidget);
+      expect(mockShareRepo.sharedUrls.length, 1);
+      expect(mockShareRepo.sharedUrls.first, testShareUrl);
     });
 
     testWidgets('shows Copier le lien button', (tester) async {
@@ -117,13 +118,13 @@ void main() {
 
     // ─── Bouton Partager à un contact ────────────────────────────────────────
 
-    testWidgets('shows Partager à un contact button', (tester) async {
+    testWidgets('shows Envoyer à un contact button', (tester) async {
       await tester.pumpWidget(buildScreen());
-      expect(find.text('Partager à un contact'), findsOneWidget);
+      expect(find.text('Envoyer à un contact'), findsOneWidget);
     });
 
     testWidgets(
-        'Partager à un contact: permission accordée → bottom sheet ouverte',
+        'Envoyer à un contact: permission accordée → bottom sheet ouverte',
         (tester) async {
       mockContactRepo = _MockContactRepository(
         permissionGranted: true,
@@ -132,7 +133,7 @@ void main() {
         ],
       );
       await tester.pumpWidget(buildScreen());
-      await tester.tap(find.text('Partager à un contact'));
+      await tester.tap(find.text('Envoyer à un contact'));
       await tester.pump(); // attend requestPermission
       await tester.pump(); // attend getContacts + setState
 
@@ -141,12 +142,12 @@ void main() {
     });
 
     testWidgets(
-        'Partager à un contact: permission refusée → snackbar affiché',
+        'Envoyer à un contact: permission refusée → snackbar affiché',
         (tester) async {
       mockContactRepo =
           _MockContactRepository(permissionGranted: false);
       await tester.pumpWidget(buildScreen());
-      await tester.tap(find.text('Partager à un contact'));
+      await tester.tap(find.text('Envoyer à un contact'));
       await tester.pump();
 
       expect(
@@ -154,7 +155,6 @@ void main() {
             'Permission contacts refusée. Activez-la dans les paramètres.'),
         findsOneWidget,
       );
-      expect(find.text('Paramètres'), findsOneWidget);
     });
   });
 }

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -12,44 +11,47 @@ import 'package:ppv_app/features/auth/presentation/auth_provider.dart';
 import 'package:ppv_app/features/auth/presentation/screens/login_screen.dart';
 
 class _MockAuthRepository implements AuthRepository {
-  bool sendOtpCalled = false;
-  String? capturedPhoneNumber;
-
-  @override
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(firebase.FirebaseAuthException error)
-        onVerificationFailed,
-    required void Function(firebase.PhoneAuthCredential credential)
-        onVerificationCompleted,
-    required void Function(String verificationId) onCodeAutoRetrievalTimeout,
-    int? forceResendingToken,
-  }) async {
-    sendOtpCalled = true;
-    capturedPhoneNumber = phoneNumber;
-    onCodeSent('test_verification_id', null);
-  }
-
-  @override
-  Future<firebase.UserCredential> verifyOtp({
-    required String verificationId,
-    required String smsCode,
-  }) async {
-    throw UnimplementedError();
-  }
+  bool loginCalled = false;
+  String? capturedEmailOrPhone;
+  String? capturedPassword;
+  Exception? loginError;
+  bool accountNotFoundError = false;
 
   @override
   Future<RegisterResult> register({
-    String? firstName,
-    String? lastName,
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    required String dateOfBirth,
+    required String password,
+    required String passwordConfirmation,
   }) async {
     throw UnimplementedError();
   }
 
   @override
-  Future<LoginResult> login() async {
-    throw UnimplementedError();
+  Future<LoginResult> login({
+    required String emailOrPhone,
+    required String password,
+  }) async {
+    loginCalled = true;
+    capturedEmailOrPhone = emailOrPhone;
+    capturedPassword = password;
+    if (loginError != null) throw loginError!;
+    return const LoginResult(
+      user: UserModel(
+        id: 1,
+        phone: '+2250701020304',
+        firstName: 'Aminata',
+        lastName: 'Koné',
+        role: 'creator',
+        kycStatus: 'none',
+        isActive: true,
+      ),
+      accessToken: 'test_access_token',
+      refreshToken: 'test_refresh_token',
+    );
   }
 
   @override
@@ -122,9 +124,9 @@ void main() {
                   const Scaffold(body: Text('Register Screen')),
             ),
             GoRoute(
-              path: '/otp',
+              path: '/home',
               builder: (_, _) =>
-                  const Scaffold(body: Text('OTP Screen')),
+                  const Scaffold(body: Text('Home Screen')),
             ),
           ],
         ),
@@ -133,83 +135,58 @@ void main() {
   }
 
   group('LoginScreen', () {
-    testWidgets('displays title and phone input', (tester) async {
+    testWidgets('displays subtitle and Se connecter button', (tester) async {
       await tester.pumpWidget(createTestWidget());
 
-      expect(find.text('Connexion'), findsOneWidget);
-      expect(find.text('+225'), findsOneWidget);
+      expect(find.text('Connectez-vous à votre compte.'), findsOneWidget);
       expect(find.text('Se connecter'), findsOneWidget);
     });
 
-    testWidgets('displays subtitle', (tester) async {
+    testWidgets('displays identifier and password fields', (tester) async {
       await tester.pumpWidget(createTestWidget());
 
-      expect(
-        find.text('Entrez votre numéro pour vous connecter.'),
-        findsOneWidget,
-      );
+      expect(find.byType(TextFormField), findsNWidgets(2));
     });
 
     testWidgets('displays register link', (tester) async {
       await tester.pumpWidget(createTestWidget());
 
-      expect(
-        find.text('Pas encore de compte ? S\'inscrire'),
-        findsOneWidget,
-      );
+      expect(find.text('Pas encore de compte ?'), findsOneWidget);
+      expect(find.text("S'inscrire"), findsOneWidget);
     });
 
-    testWidgets('shows error for empty phone number', (tester) async {
+    testWidgets('shows validation error for empty identifier', (tester) async {
       await tester.pumpWidget(createTestWidget());
 
       await tester.tap(find.text('Se connecter'));
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Veuillez saisir votre numéro de téléphone'),
+        find.text('Veuillez entrer votre email ou téléphone'),
         findsOneWidget,
       );
     });
 
-    testWidgets('shows error for invalid phone format', (tester) async {
+    testWidgets('shows validation error for empty password', (tester) async {
       await tester.pumpWidget(createTestWidget());
 
-      await tester.enterText(find.byType(TextField), '1234');
+      // Fill identifier but not password
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.first, 'aminata@example.com');
       await tester.tap(find.text('Se connecter'));
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Numéro invalide. Format : 01/05/07 XX XX XX XX'),
+        find.text('Veuillez entrer votre mot de passe'),
         findsOneWidget,
       );
-    });
-
-    testWidgets('accepts valid phone and sends OTP', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-
-      await tester.enterText(find.byType(TextField), '0701020304');
-      await tester.tap(find.text('Se connecter'));
-      await tester.pumpAndSettle();
-
-      expect(mockRepository.sendOtpCalled, true);
-      expect(mockRepository.capturedPhoneNumber, '+2250701020304');
-    });
-
-    testWidgets('navigates to OTP screen after successful send',
-        (tester) async {
-      await tester.pumpWidget(createTestWidget());
-
-      await tester.enterText(find.byType(TextField), '0701020304');
-      await tester.tap(find.text('Se connecter'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('OTP Screen'), findsOneWidget);
     });
 
     testWidgets('navigates to register screen on link tap', (tester) async {
       await tester.pumpWidget(createTestWidget());
 
-      await tester.tap(find.text('Pas encore de compte ? S\'inscrire'));
+      await tester.ensureVisible(find.text("S'inscrire"));
+      await tester.tap(find.text("S'inscrire"));
       await tester.pumpAndSettle();
 
       expect(find.text('Register Screen'), findsOneWidget);
@@ -218,7 +195,14 @@ void main() {
     testWidgets('displays lock icon', (tester) async {
       await tester.pumpWidget(createTestWidget());
 
-      expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+      // Lock icon is on the password field
+      expect(find.byIcon(Icons.lock_outline_rounded), findsOneWidget);
+    });
+
+    testWidgets('displays forgot password link', (tester) async {
+      await tester.pumpWidget(createTestWidget());
+
+      expect(find.text('Mot de passe oublié ?'), findsOneWidget);
     });
   });
 }

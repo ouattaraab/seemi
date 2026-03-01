@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -15,37 +14,23 @@ class _MockAuthRepository implements AuthRepository {
   bool shouldFail = false;
 
   @override
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(firebase.FirebaseAuthException error)
-        onVerificationFailed,
-    required void Function(firebase.PhoneAuthCredential credential)
-        onVerificationCompleted,
-    required void Function(String verificationId) onCodeAutoRetrievalTimeout,
-    int? forceResendingToken,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<firebase.UserCredential> verifyOtp({
-    required String verificationId,
-    required String smsCode,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<RegisterResult> register({
-    String? firstName,
-    String? lastName,
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    required String dateOfBirth,
+    required String password,
+    required String passwordConfirmation,
   }) async {
     throw UnimplementedError();
   }
 
   @override
-  Future<LoginResult> login() async {
+  Future<LoginResult> login({
+    required String emailOrPhone,
+    required String password,
+  }) async {
     throw UnimplementedError();
   }
 
@@ -168,7 +153,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('Acceptation requise'), findsOneWidget);
-      expect(find.byIcon(Icons.block), findsOneWidget);
+      expect(find.byIcon(Icons.block_rounded), findsOneWidget);
     });
 
     testWidgets('declined view has return to register button',

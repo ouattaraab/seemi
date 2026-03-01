@@ -77,7 +77,7 @@ void main() {
     testWidgets('displays total gained', (tester) async {
       // price=50000 centimes = 500 FCFA × 3 ventes = 1500 FCFA
       await tester.pumpWidget(buildCard(baseContent));
-      expect(find.text('1500 FCFA gagné'), findsOneWidget);
+      expect(find.text('1\u202f500 FCFA gagné'), findsOneWidget);
     });
 
     testWidgets('shows placeholder when blur_url is null', (tester) async {
@@ -122,18 +122,18 @@ void main() {
 
     testWidgets('shows share button when share_url is present', (tester) async {
       await tester.pumpWidget(buildCard(contentWithShareUrl));
-      expect(find.byIcon(Icons.share_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.share_rounded), findsOneWidget);
     });
 
     testWidgets('hides share button when share_url is null', (tester) async {
       await tester.pumpWidget(buildCard(baseContent));
-      expect(find.byIcon(Icons.share_outlined), findsNothing);
+      expect(find.byIcon(Icons.share_rounded), findsNothing);
     });
 
     testWidgets('share button calls ShareRepository with share url',
         (tester) async {
       await tester.pumpWidget(buildCard(contentWithShareUrl));
-      await tester.tap(find.byIcon(Icons.share_outlined));
+      await tester.tap(find.byIcon(Icons.share_rounded));
       await tester.pump();
 
       expect(mockShareRepo.sharedUrls.length, 1);
@@ -141,12 +141,14 @@ void main() {
           'https://ppv.example.com/c/abc123xyz');
     });
 
-    testWidgets('share button shows snackbar after sharing', (tester) async {
+    testWidgets('share button calls ShareRepository when tapped', (tester) async {
       await tester.pumpWidget(buildCard(contentWithShareUrl));
-      await tester.tap(find.byIcon(Icons.share_outlined));
+      await tester.tap(find.byIcon(Icons.share_rounded));
       await tester.pump();
 
-      expect(find.text('Lien partagé !'), findsOneWidget);
+      expect(mockShareRepo.sharedUrls.length, 1);
+      expect(mockShareRepo.sharedUrls.first,
+          'https://ppv.example.com/c/abc123xyz');
     });
 
     // ─── Icône Copier le lien ────────────────────────────────────────────────
@@ -154,17 +156,17 @@ void main() {
     testWidgets('shows copy link icon when share_url is present',
         (tester) async {
       await tester.pumpWidget(buildCard(contentWithShareUrl));
-      expect(find.byIcon(Icons.link_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.link_rounded), findsOneWidget);
     });
 
     testWidgets('hides copy link icon when share_url is null', (tester) async {
       await tester.pumpWidget(buildCard(baseContent));
-      expect(find.byIcon(Icons.link_outlined), findsNothing);
+      expect(find.byIcon(Icons.link_rounded), findsNothing);
     });
 
     testWidgets('copy link icon shows snackbar "Lien copié !"', (tester) async {
       await tester.pumpWidget(buildCard(contentWithShareUrl));
-      await tester.tap(find.byIcon(Icons.link_outlined));
+      await tester.tap(find.byIcon(Icons.link_rounded));
       await tester.pump();
 
       expect(find.text('Lien copié !'), findsOneWidget);

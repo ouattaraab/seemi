@@ -111,7 +111,7 @@ void main() {
       await tester.pumpWidget(_buildScreen(repo));
       await tester.pumpAndSettle();
 
-      expect(find.text('Par Bob Créateur'), findsOneWidget);
+      expect(find.text('Bob Créateur'), findsOneWidget);
       expect(
         find.textContaining('Payez 1500 FCFA pour la voir.'),
         findsOneWidget,
@@ -125,7 +125,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('btn-pay')), findsOneWidget);
-      expect(find.text('Payer 750 FCFA'), findsOneWidget);
+      expect(find.text('Débloquer · 750 FCFA'), findsOneWidget);
     });
 
     testWidgets('affiche le compteur de vues (pluriel)', (tester) async {
@@ -134,7 +134,7 @@ void main() {
       await tester.pumpWidget(_buildScreen(repo));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('12 personnes ont'), findsOneWidget);
+      expect(find.text('12'), findsOneWidget);
     });
 
     testWidgets('affiche le compteur de vues (singulier)', (tester) async {
@@ -143,7 +143,7 @@ void main() {
       await tester.pumpWidget(_buildScreen(repo));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 personne a'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
     });
 
     testWidgets('affiche l\'état d\'erreur quand le slug est introuvable',

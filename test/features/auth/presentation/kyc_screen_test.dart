@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -14,31 +13,22 @@ import 'package:ppv_app/features/auth/presentation/widgets/kyc_step_indicator.da
 
 class _MockAuthRepository implements AuthRepository {
   @override
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(firebase.FirebaseAuthException error)
-        onVerificationFailed,
-    required void Function(firebase.PhoneAuthCredential credential)
-        onVerificationCompleted,
-    required void Function(String verificationId) onCodeAutoRetrievalTimeout,
-    int? forceResendingToken,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<firebase.UserCredential> verifyOtp({
-    required String verificationId,
-    required String smsCode,
-  }) async {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<RegisterResult> register({
-    String? firstName,
-    String? lastName,
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    required String dateOfBirth,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<LoginResult> login({
+    required String emailOrPhone,
+    required String password,
   }) async {
     throw UnimplementedError();
   }
@@ -59,11 +49,6 @@ class _MockAuthRepository implements AuthRepository {
       kycStatus: 'pending',
       isActive: true,
     );
-  }
-
-  @override
-  Future<LoginResult> login() async {
-    throw UnimplementedError();
   }
 
   @override
@@ -157,7 +142,7 @@ void main() {
     testWidgets('displays KYC title and step indicator', (tester) async {
       await tester.pumpWidget(createTestWidget());
 
-      expect(find.text('Vérification KYC'), findsOneWidget);
+      expect(find.text('Informations'), findsOneWidget);
       expect(find.byType(KycStepIndicator), findsOneWidget);
     });
 
@@ -165,9 +150,9 @@ void main() {
       await tester.pumpWidget(createTestWidget());
 
       expect(find.text('Informations personnelles'), findsOneWidget);
-      expect(find.text('Prénom'), findsOneWidget);
-      expect(find.text('Nom'), findsOneWidget);
-      expect(find.text('Date de naissance'), findsOneWidget);
+      expect(find.text('PRÉNOM'), findsOneWidget);
+      expect(find.text('NOM'), findsOneWidget);
+      expect(find.text('DATE DE NAISSANCE'), findsOneWidget);
       expect(find.text('Continuer'), findsOneWidget);
     });
 
@@ -177,7 +162,8 @@ void main() {
       await tester.tap(find.text('Continuer'));
       await tester.pump();
 
-      expect(find.textContaining('prénom'), findsOneWidget);
+      // Error message shown when first name is missing
+      expect(find.text('Le prénom est obligatoire.'), findsOneWidget);
     });
 
     testWidgets('displays 3 TextFields in step 1', (tester) async {
@@ -204,10 +190,10 @@ void main() {
 
       await tester.pumpWidget(createTestWidgetWithProvider(provider));
 
-      expect(find.text("Pièce d'identité"), findsOneWidget);
-      expect(find.text('Photo'), findsOneWidget);
+      expect(find.text("Pièce d'identité"), findsNWidgets(2));
+      expect(find.text('Caméra'), findsOneWidget);
       expect(find.text('Galerie'), findsOneWidget);
-      expect(find.text('Aucune image sélectionnée'), findsOneWidget);
+      expect(find.text('Aucun document sélectionné'), findsOneWidget);
     });
 
     testWidgets('step 2 Continuer button disabled without document',
@@ -233,7 +219,7 @@ void main() {
 
       await tester.pumpWidget(createTestWidgetWithProvider(provider));
 
-      expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsOneWidget);
     });
   });
 
@@ -249,7 +235,7 @@ void main() {
 
       await tester.pumpWidget(createTestWidgetWithProvider(provider));
 
-      expect(find.text('Récapitulatif'), findsOneWidget);
+      expect(find.text('Récapitulatif'), findsNWidgets(2));
       expect(find.text('Aminata'), findsOneWidget);
       expect(find.text('Koné'), findsOneWidget);
       expect(find.text('15/03/2000'), findsOneWidget);
@@ -286,9 +272,9 @@ void main() {
       provider.nextStep();
 
       await tester.pumpWidget(createTestWidgetWithProvider(provider));
-      expect(find.text("Pièce d'identité"), findsOneWidget);
+      expect(find.text("Pièce d'identité"), findsNWidgets(2));
 
-      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new_rounded));
       await tester.pump();
 
       expect(find.text('Informations personnelles'), findsOneWidget);
