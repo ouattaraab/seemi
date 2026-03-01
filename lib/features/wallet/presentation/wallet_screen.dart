@@ -68,7 +68,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -82,7 +82,7 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
             child: const Icon(
               Icons.settings_rounded,
-              color: AppColors.kTextPrimary,
+              color: AppColors.kTextSecondary,
               size: 20,
             ),
           ),
@@ -95,166 +95,181 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _buildBalanceCard(BuildContext context) {
     return Consumer2<WalletProvider, PayoutMethodProvider>(
-      builder: (context, wallet, payout, _) {
+      builder: (context, wallet, payout, child) {
         final hasPayoutMethod = payout.existingPayoutMethod?.isActive ?? false;
-        final canWithdraw = wallet.balance > 0 && hasPayoutMethod && !wallet.isWithdrawing;
+        final canWithdraw =
+            wallet.balance > 0 && hasPayoutMethod && !wallet.isWithdrawing;
         final balanceFcfa = wallet.balance ~/ 100;
 
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(40),
-          child: Container(
-            padding: const EdgeInsets.all(40),
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+          decoration: BoxDecoration(
             color: AppColors.kPrimary,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Decorative orb — top-right (amber/20, blur-3xl)
-                Positioned(
-                  top: -40,
-                  right: -40,
-                  child: Container(
-                    width: 128,
-                    height: 128,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.kAccent.withValues(alpha: 0.20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.kAccent.withValues(alpha: 0.25),
-                          blurRadius: 60,
-                          spreadRadius: 20,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Decorative orb — bottom-left (amber/10, blur-2xl)
-                Positioned(
-                  bottom: -40,
-                  left: -40,
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.kAccent.withValues(alpha: 0.10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.kAccent.withValues(alpha: 0.12),
-                          blurRadius: 40,
-                          spreadRadius: 10,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Content (z-10)
-                Column(
-                  children: [
-                    // Label
-                    const Text(
-                      'SOLDE DISPONIBLE',
-                      style: TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        color: Colors.white60,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2,
+            borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.kPrimary.withValues(alpha: 0.30),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Orbe déco — haut droite
+              Positioned(
+                top: -32,
+                right: -32,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.kAccent.withValues(alpha: 0.18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.kAccent.withValues(alpha: 0.20),
+                        blurRadius: 50,
+                        spreadRadius: 10,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Amount + FCFA
-                    wallet.isLoading
-                        ? const SizedBox(
-                            height: 56,
-                            child: Center(
-                              child: CircularProgressIndicator(
+                    ],
+                  ),
+                ),
+              ),
+              // Orbe déco — bas gauche
+              Positioned(
+                bottom: -24,
+                left: -24,
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
+                ),
+              ),
+              // Contenu
+              Column(
+                children: [
+                  // Label
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: 13,
+                        color: Colors.white.withValues(alpha: 0.65),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'SOLDE DISPONIBLE',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Montant
+                  wallet.isLoading
+                      ? const SizedBox(
+                          height: 60,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _fmt(balanceFcfa),
+                              style: const TextStyle(
+                                fontFamily: 'Plus Jakarta Sans',
                                 color: Colors.white,
-                                strokeWidth: 2,
+                                fontSize: 52,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1.5,
+                                height: 1.0,
                               ),
                             ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _fmt(balanceFcfa),
-                                style: const TextStyle(
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.kAccent.withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'FCFA',
+                                style: TextStyle(
                                   fontFamily: 'Plus Jakarta Sans',
-                                  color: Colors.white,
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -1,
+                                  color: AppColors.kAccent,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
                                   height: 1.0,
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              const Padding(
-                                padding: EdgeInsets.only(top: 6),
-                                child: Text(
-                                  'FCFA',
-                                  style: TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    color: AppColors.kAccent,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.0,
-                                  ),
+                            ),
+                          ],
+                        ),
+                  const SizedBox(height: 28),
+                  // Bouton Retirer
+                  SizedBox(
+                    width: double.infinity,
+                    height: AppSpacing.kButtonHeight,
+                    child: ElevatedButton.icon(
+                      key: const Key('btn-withdraw'),
+                      onPressed: canWithdraw
+                          ? () {
+                              wallet.clearWithdrawalError();
+                              showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: AppColors.kBgSurface,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(32)),
                                 ),
-                              ),
-                            ],
-                          ),
-                    const SizedBox(height: 32),
-                    // Withdraw button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 58,
-                      child: ElevatedButton.icon(
-                        key: const Key('btn-withdraw'),
-                        onPressed: canWithdraw
-                            ? () {
-                                wallet.clearWithdrawalError();
-                                showModalBottomSheet<void>(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: AppColors.kBgSurface,
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.vertical(top: Radius.circular(32)),
-                                  ),
-                                  builder: (_) => const WithdrawalBottomSheet(),
-                                );
-                              }
-                            : null,
-                        icon: const Icon(Icons.account_balance_rounded, size: 22),
-                        label: const Text('Retirer mes gains'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.kAccent,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor:
-                              Colors.white.withValues(alpha: 0.15),
-                          disabledForegroundColor:
-                              Colors.white.withValues(alpha: 0.40),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.kRadiusPill),
-                          ),
-                          elevation: 0,
-                          shadowColor: AppColors.kAccent.withValues(alpha: 0.30),
-                          textStyle: const TextStyle(
-                            fontFamily: 'Plus Jakarta Sans',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
+                                builder: (_) => const WithdrawalBottomSheet(),
+                              );
+                            }
+                          : null,
+                      icon: const Icon(Icons.account_balance_rounded, size: 20),
+                      label: const Text('Retirer mes gains'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.kAccent,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor:
+                            Colors.white.withValues(alpha: 0.15),
+                        disabledForegroundColor:
+                            Colors.white.withValues(alpha: 0.40),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
+                        textStyle: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },
@@ -265,7 +280,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _buildPayoutMethodsSection() {
     return Consumer<PayoutMethodProvider>(
-      builder: (context, provider, _) {
+      builder: (context, provider, child) {
         final method = provider.existingPayoutMethod;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,7 +290,8 @@ class _WalletScreenState extends State<WalletScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Méthodes de retrait', style: AppTextStyles.kTitleLarge),
+                  const Text('Méthodes de retrait',
+                      style: AppTextStyles.kTitleLarge),
                   TextButton(
                     onPressed: () {},
                     style: TextButton.styleFrom(
@@ -296,9 +312,9 @@ class _WalletScreenState extends State<WalletScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             SizedBox(
-              height: 148,
+              height: 144,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -307,22 +323,22 @@ class _WalletScreenState extends State<WalletScreen> {
                     _PayoutMethodCard(method: method),
                     const SizedBox(width: 12),
                   ],
-                  _AddPayoutCard(),
+                  const _AddPayoutCard(),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 36),
           ],
         );
       },
     );
   }
 
-  // ── Recent activity section ───────────────────────────────────────────────
+  // ── Activité récente ──────────────────────────────────────────────────────
 
   Widget _buildActivitySection() {
     return Consumer<WalletProvider>(
-      builder: (context, wallet, _) {
+      builder: (context, wallet, child) {
         final items = [
           ...wallet.transactions.map(_ActivityItem.fromTransaction),
           ...wallet.withdrawals.map(_ActivityItem.fromWithdrawal),
@@ -334,54 +350,122 @@ class _WalletScreenState extends State<WalletScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('Activité récente', style: AppTextStyles.kTitleLarge),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               if (wallet.isFetchingTransactions && items.isEmpty)
                 const Center(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: CircularProgressIndicator(color: AppColors.kPrimary),
+                    padding: EdgeInsets.symmetric(vertical: 32),
+                    child: CircularProgressIndicator(
+                        color: AppColors.kPrimary),
                   ),
                 )
               else if (items.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Text(
-                      'Aucune activité',
-                      style: AppTextStyles.kBodyMedium.copyWith(
-                        color: AppColors.kTextSecondary,
-                      ),
-                    ),
-                  ),
-                )
+                _buildEmptyActivity()
               else
-                ...items.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _ActivityRow(item: item),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.kBgSurface,
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.kRadiusXl),
+                    border: Border.all(color: AppColors.kBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            AppColors.kTextPrimary.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      for (var i = 0; i < items.length; i++) ...[
+                        if (i > 0)
+                          Divider(
+                            height: 1,
+                            color: AppColors.kBorder.withValues(alpha: 0.6),
+                            indent: 20,
+                            endIndent: 20,
+                          ),
+                        _ActivityRow(item: items[i]),
+                      ],
+                    ],
                   ),
                 ),
-              if (wallet.hasMoreTransactions)
+              if (wallet.hasMoreTransactions) ...[
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  child: TextButton(
+                  child: OutlinedButton(
                     onPressed: () => wallet.loadTransactions(),
-                    child: const Text(
-                      'CHARGER L\'HISTORIQUE',
-                      style: TextStyle(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.kTextSecondary,
+                      side: const BorderSide(color: AppColors.kBorder),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: const TextStyle(
                         fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.kTextSecondary,
-                        letterSpacing: 1.5,
+                        letterSpacing: 1.2,
                       ),
                     ),
+                    child: const Text('CHARGER L\'HISTORIQUE'),
                   ),
                 ),
+              ],
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyActivity() {
+    return Container(
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: AppColors.kBgSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+        border: Border.all(color: AppColors.kBorder),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.kBgElevated,
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              size: 24,
+              color: AppColors.kTextTertiary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Aucune activité',
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.kTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Vos transactions apparaîtront ici',
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 13,
+              color: AppColors.kTextTertiary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
@@ -407,16 +491,26 @@ class _PayoutMethodCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 256,
-      padding: const EdgeInsets.all(24),
+      width: 240,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.kBgSurface,
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
         border: Border.all(
           color: method.isActive
-              ? AppColors.kAccent.withValues(alpha: 0.20)
+              ? AppColors.kAccent.withValues(alpha: 0.30)
               : AppColors.kBorder,
+          width: method.isActive ? 1.5 : 1.0,
         ),
+        boxShadow: method.isActive
+            ? [
+                BoxShadow(
+                  color: AppColors.kAccent.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,30 +520,40 @@ class _PayoutMethodCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: _badgeColor(),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
                   child: Text(
                     _badgeLabel(),
                     style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
                       color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: _isOrange() ? 18 : 14,
-                      fontStyle:
-                          _isOrange() ? FontStyle.italic : FontStyle.normal,
+                      fontWeight: FontWeight.w900,
+                      fontSize: _isOrange() ? 20 : 15,
+                      fontStyle: _isOrange()
+                          ? FontStyle.italic
+                          : FontStyle.normal,
                     ),
                   ),
                 ),
               ),
               if (method.isActive)
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.kAccent,
-                  size: 24,
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.kSuccess.withValues(alpha: 0.12),
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: AppColors.kSuccess,
+                    size: 16,
+                  ),
                 ),
             ],
           ),
@@ -462,7 +566,10 @@ class _PayoutMethodCard extends StatelessWidget {
                     .copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
-              Text(method.accountNumberMasked, style: AppTextStyles.kCaption),
+              Text(
+                method.accountNumberMasked,
+                style: AppTextStyles.kCaption,
+              ),
             ],
           ),
         ],
@@ -473,92 +580,107 @@ class _PayoutMethodCard extends StatelessWidget {
   bool _isOrange() => method.provider?.toLowerCase() == 'orange';
 
   String _providerName() {
-    switch (method.provider?.toLowerCase()) {
-      case 'orange':
-        return 'Orange Money';
-      case 'wave':
-        return 'Wave';
-      case 'mtn':
-        return 'MTN Money';
-      case 'moov':
-        return 'Moov Money';
-      default:
-        return method.payoutType == 'mobile_money'
-            ? 'Mobile Money'
-            : 'Compte bancaire';
-    }
+    return switch (method.provider?.toLowerCase()) {
+      'orange' => 'Orange Money',
+      'wave'   => 'Wave',
+      'mtn'    => 'MTN Money',
+      'moov'   => 'Moov Money',
+      _        => method.payoutType == 'mobile_money'
+          ? 'Mobile Money'
+          : 'Compte bancaire',
+    };
   }
 
   Color _badgeColor() {
-    switch (method.provider?.toLowerCase()) {
-      case 'orange':
-        return const Color(0xFFFF6600);
-      case 'wave':
-        return const Color(0xFF3399FF);
-      case 'mtn':
-        return const Color(0xFFFFCC00);
-      case 'moov':
-        return const Color(0xFF0066CC);
-      default:
-        return AppColors.kPrimary;
-    }
+    return switch (method.provider?.toLowerCase()) {
+      'orange' => const Color(0xFFFF6600),
+      'wave'   => const Color(0xFF1A73E8),
+      'mtn'    => const Color(0xFFFFCC00),
+      'moov'   => const Color(0xFF0066CC),
+      _        => AppColors.kPrimary,
+    };
   }
 
   String _badgeLabel() {
-    switch (method.provider?.toLowerCase()) {
-      case 'orange':
-        return 'O';
-      case 'wave':
-        return 'W';
-      case 'mtn':
-        return 'M';
-      case 'moov':
-        return 'Mv';
-      default:
-        return method.payoutType == 'mobile_money' ? 'MM' : 'B';
-    }
+    return switch (method.provider?.toLowerCase()) {
+      'orange' => 'O',
+      'wave'   => 'W',
+      'mtn'    => 'M',
+      'moov'   => 'Mv',
+      _        => method.payoutType == 'mobile_money' ? 'MM' : 'B',
+    };
   }
 }
 
 // ─── _AddPayoutCard ───────────────────────────────────────────────────────────
 
 class _AddPayoutCard extends StatelessWidget {
+  const _AddPayoutCard();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 180,
-      padding: const EdgeInsets.all(24),
+      width: 160,
       decoration: BoxDecoration(
         color: AppColors.kBgSurface,
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
-        border: Border.all(color: AppColors.kBorder),
+        border: Border.all(
+          color: AppColors.kBorder,
+          // Simulated dashed appearance via slightly thicker border
+        ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.kBgElevated,
-              borderRadius: BorderRadius.circular(12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.kPrimary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.kPrimary.withValues(alpha: 0.20),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    color: AppColors.kPrimary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Ajouter un moyen',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.kTextPrimary,
+                    height: 1.3,
+                  ),
+                ),
+                const Text(
+                  'de retrait',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 13,
+                    color: AppColors.kTextSecondary,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
-            child: const Icon(Icons.add_rounded, color: AppColors.kPrimary, size: 22),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Ajouter un moyen',
-            style: AppTextStyles.kCaption.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppColors.kTextPrimary,
-            ),
-          ),
-          Text(
-            'de retrait',
-            style: AppTextStyles.kCaption.copyWith(color: AppColors.kTextSecondary),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -574,6 +696,7 @@ class _ActivityItem {
   final bool isCredit;
   final bool isWithdrawal;
   final String? statusLabel;
+  final String? withdrawalStatus;
 
   const _ActivityItem({
     required this.title,
@@ -583,6 +706,7 @@ class _ActivityItem {
     required this.isCredit,
     this.isWithdrawal = false,
     this.statusLabel,
+    this.withdrawalStatus,
   });
 
   factory _ActivityItem.fromTransaction(WalletTransaction tx) {
@@ -608,11 +732,12 @@ class _ActivityItem {
     return _ActivityItem(
       title: 'Retrait',
       subtitle: w.payoutMethodLabel ?? 'Envoyé',
-      dateMethod: '${_fmtDate(w.createdAt)} • $label',
+      dateMethod: _fmtDate(w.createdAt),
       amountCentimes: w.amount,
       isCredit: false,
       isWithdrawal: true,
-      statusLabel: label.toUpperCase(),
+      statusLabel: label,
+      withdrawalStatus: w.status,
     );
   }
 
@@ -622,62 +747,59 @@ class _ActivityItem {
   }
 
   static String _fmtDate(DateTime dt) {
-    const m = [
+    const months = [
       'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
       'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc',
     ];
     final h = dt.hour.toString().padLeft(2, '0');
     final min = dt.minute.toString().padLeft(2, '0');
-    return '${m[dt.month - 1]} ${dt.day}, $h:$min';
+    return '${months[dt.month - 1]} ${dt.day}, $h:$min';
   }
 }
 
-// ─── _ActivityRow (widget) ────────────────────────────────────────────────────
+// ─── _ActivityRow ─────────────────────────────────────────────────────────────
 
 class _ActivityRow extends StatelessWidget {
   final _ActivityItem item;
-
   const _ActivityRow({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final color = item.isCredit
+    final iconColor = item.isCredit
         ? AppColors.kSuccess
         : (item.isWithdrawal ? AppColors.kPrimary : AppColors.kError);
-    final sign = item.isCredit ? '+' : '-';
+    final sign = item.isCredit ? '+' : '−';
+    final amtColor = item.isCredit ? AppColors.kSuccess : AppColors.kTextPrimary;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.kBgSurface,
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
-        border: Border.all(color: AppColors.kBorder),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
-          // Icon
+          // Icône
           Container(
-            width: 56,
-            height: 56,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(16),
+              color: iconColor.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
-              item.isCredit ? Icons.south_west_rounded : Icons.north_east_rounded,
-              color: color,
-              size: 24,
+              item.isCredit
+                  ? Icons.south_west_rounded
+                  : Icons.north_east_rounded,
+              color: iconColor,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 16),
-          // Text info
+          const SizedBox(width: 14),
+          // Infos texte
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.title,
-                  style: AppTextStyles.kBodyLarge
+                  style: AppTextStyles.kBodyMedium
                       .copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
@@ -690,30 +812,35 @@ class _ActivityRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   item.dateMethod,
-                  style: AppTextStyles.kCaption.copyWith(fontSize: 10),
+                  style: AppTextStyles.kCaption.copyWith(
+                    fontSize: 11,
+                    color: AppColors.kTextTertiary,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          // Amount
+          const SizedBox(width: 12),
+          // Montant + statut
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '$sign${_fmtAmt(item.amountCentimes)}',
+                '$sign${_fmtAmt(item.amountCentimes)} F',
                 style: TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
-                  color: color,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
+                  color: amtColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              if (item.statusLabel != null)
-                Text(
-                  item.statusLabel!,
-                  style: AppTextStyles.kCaption.copyWith(fontSize: 10),
+              if (item.statusLabel != null) ...[
+                const SizedBox(height: 4),
+                _WithdrawalBadge(
+                  label: item.statusLabel!,
+                  status: item.withdrawalStatus,
                 ),
+              ],
             ],
           ),
         ],
@@ -731,5 +858,39 @@ class _ActivityRow extends StatelessWidget {
       buf.write(s[i]);
     }
     return buf.toString();
+  }
+}
+
+// ─── _WithdrawalBadge ─────────────────────────────────────────────────────────
+
+class _WithdrawalBadge extends StatelessWidget {
+  final String label;
+  final String? status;
+  const _WithdrawalBadge({required this.label, this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = switch (status) {
+      'completed'                 => (AppColors.kSuccess.withValues(alpha: 0.10), AppColors.kSuccess),
+      'pending' || 'processing'  => (AppColors.kAccent.withValues(alpha: 0.10), AppColors.kAccentDark),
+      'rejected'                 => (AppColors.kError.withValues(alpha: 0.10), AppColors.kError),
+      _                          => (AppColors.kBgElevated, AppColors.kTextSecondary),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'Plus Jakarta Sans',
+          color: fg,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 }
