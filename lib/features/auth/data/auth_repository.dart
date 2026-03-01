@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:ppv_app/core/storage/secure_storage_service.dart';
 import 'package:ppv_app/features/auth/data/auth_remote_datasource.dart';
 import 'package:ppv_app/features/auth/data/tos_acceptance_model.dart';
@@ -43,78 +42,46 @@ class AuthRepository {
   })  : _dataSource = dataSource,
         _storageService = storageService;
 
-  /// Envoie un OTP au numéro de téléphone.
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(firebase.FirebaseAuthException error)
-        onVerificationFailed,
-    required void Function(firebase.PhoneAuthCredential credential)
-        onVerificationCompleted,
-    required void Function(String verificationId) onCodeAutoRetrievalTimeout,
-    int? forceResendingToken,
-  }) {
-    return _dataSource.sendOtp(
-      phoneNumber: phoneNumber,
-      onCodeSent: onCodeSent,
-      onVerificationFailed: onVerificationFailed,
-      onVerificationCompleted: onVerificationCompleted,
-      onCodeAutoRetrievalTimeout: onCodeAutoRetrievalTimeout,
-      forceResendingToken: forceResendingToken,
-    );
-  }
-
-  /// Vérifie le code OTP et retourne le UserCredential Firebase.
-  Future<firebase.UserCredential> verifyOtp({
-    required String verificationId,
-    required String smsCode,
-  }) {
-    return _dataSource.verifyOtp(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
-  }
-
-  /// Inscription complète : Firebase token → API register → stockage JWT.
+  /// Inscription avec email + mot de passe.
   Future<RegisterResult> register({
-    String? firstName,
-    String? lastName,
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    required String dateOfBirth,
+    required String password,
+    required String passwordConfirmation,
   }) async {
-    final firebaseToken = await _dataSource.getFirebaseIdToken();
-    if (firebaseToken == null) {
-      throw Exception('No Firebase token available');
-    }
-
-    final response = await _dataSource.registerWithFirebaseToken(
-      firebaseToken: firebaseToken,
-      firstName: firstName,
-      lastName: lastName,
+    final response = await _dataSource.registerWithEmailPassword(
+      firstName:             firstName,
+      lastName:              lastName,
+      phone:                 phone,
+      email:                 email,
+      dateOfBirth:           dateOfBirth,
+      password:              password,
+      passwordConfirmation:  passwordConfirmation,
     );
 
-    final data = response['data'];
-    if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
-    }
+    return _parseAuthResponse(response);
+  }
 
-    final userData = data['user'];
-    if (userData is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing user data');
-    }
+  /// Connexion avec email/téléphone + mot de passe.
+  ///
+  /// Propage [AuthApiException] si ACCOUNT_NOT_FOUND, INVALID_PASSWORD ou ACCOUNT_DISABLED.
+  Future<LoginResult> login({
+    required String emailOrPhone,
+    required String password,
+  }) async {
+    final response = await _dataSource.loginWithEmailPassword(
+      emailOrPhone: emailOrPhone,
+      password:     password,
+    );
 
-    final accessToken = data['access_token'] as String?;
-    final refreshToken = data['refresh_token'] as String?;
-    if (accessToken == null || refreshToken == null) {
-      throw Exception('Invalid API response: missing tokens');
-    }
-
-    final user = UserModel.fromJson(userData);
-
-    await _storageService.saveTokens(access: accessToken, refresh: refreshToken);
-
-    return RegisterResult(
-      user: user,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
+    final result = _parseAuthResponse(response);
+    return LoginResult(
+      user:         result.user,
+      accessToken:  result.accessToken,
+      refreshToken: result.refreshToken,
     );
   }
 
@@ -126,105 +93,36 @@ class AuthRepository {
     required File document,
   }) async {
     final response = await _dataSource.submitKyc(
-      firstName: firstName,
-      lastName: lastName,
+      firstName:   firstName,
+      lastName:    lastName,
       dateOfBirth: dateOfBirth,
-      document: document,
+      document:    document,
     );
-
-    final data = response['data'];
-    if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
-    }
-
-    final userData = data['user'];
-    if (userData is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing user data');
-    }
-
-    return UserModel.fromJson(userData);
+    return _parseUserFromResponse(response);
   }
 
   /// Enregistre l'acceptation des CGU.
-  Future<TosAcceptanceModel> acceptTos({
-    required String type,
-  }) async {
-    final response = await _dataSource.acceptTos(
-      type: type,
-    );
-
+  Future<TosAcceptanceModel> acceptTos({required String type}) async {
+    final response = await _dataSource.acceptTos(type: type);
     final data = response['data'];
-    if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
-    }
-
+    if (data is! Map<String, dynamic>) throw Exception('Invalid API response');
     return TosAcceptanceModel.fromJson(data);
   }
 
-  /// Connexion : Firebase token → API login → stockage JWT.
-  ///
-  /// Propage [AuthApiException] si ACCOUNT_NOT_FOUND ou ACCOUNT_DISABLED.
-  Future<LoginResult> login() async {
-    final firebaseToken = await _dataSource.getFirebaseIdToken();
-    if (firebaseToken == null) {
-      throw Exception('No Firebase token available');
-    }
-
-    final response = await _dataSource.login(firebaseToken: firebaseToken);
-
-    final data = response['data'];
-    if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
-    }
-
-    final userData = data['user'];
-    if (userData is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing user data');
-    }
-
-    final accessToken = data['access_token'] as String?;
-    final refreshToken = data['refresh_token'] as String?;
-    if (accessToken == null || refreshToken == null) {
-      throw Exception('Invalid API response: missing tokens');
-    }
-
-    final user = UserModel.fromJson(userData);
-
-    await _storageService.saveTokens(access: accessToken, refresh: refreshToken);
-
-    return LoginResult(
-      user: user,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-    );
-  }
-
-  /// Rafraîchit les tokens JWT via l'API.
+  /// Rafraîchit les tokens JWT.
   Future<void> refreshToken() async {
     final currentRefreshToken = await _storageService.getRefreshToken();
-    if (currentRefreshToken == null) {
-      throw Exception('No refresh token available');
-    }
+    if (currentRefreshToken == null) throw Exception('No refresh token');
 
-    final response = await _dataSource.refreshToken(
-      refreshToken: currentRefreshToken,
-    );
-
+    final response = await _dataSource.refreshToken(refreshToken: currentRefreshToken);
     final data = response['data'];
-    if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
-    }
+    if (data is! Map<String, dynamic>) throw Exception('Invalid API response');
 
-    final accessToken = data['access_token'] as String?;
-    final newRefreshToken = data['refresh_token'] as String?;
-    if (accessToken == null || newRefreshToken == null) {
-      throw Exception('Invalid API response: missing tokens');
-    }
+    final accessToken  = data['access_token']  as String?;
+    final refreshToken = data['refresh_token'] as String?;
+    if (accessToken == null || refreshToken == null) throw Exception('Missing tokens');
 
-    await _storageService.saveTokens(
-      access: accessToken,
-      refresh: newRefreshToken,
-    );
+    await _storageService.saveTokens(access: accessToken, refresh: refreshToken);
   }
 
   /// Déconnexion : appel API + nettoyage tokens locaux.
@@ -233,9 +131,7 @@ class AuthRepository {
     await _storageService.clearTokens();
   }
 
-  /// Enregistre ou met à jour le FCM token du device côté API.
-  ///
-  /// Best-effort — ne jamais propager l'exception au caller.
+  /// Enregistre ou met à jour le FCM token du device.
   Future<void> registerFcmToken(String token) async {
     await _dataSource.registerFcmToken(token);
   }
@@ -248,37 +144,45 @@ class AuthRepository {
   }) async {
     final response = await _dataSource.updateProfile(
       firstName: firstName,
-      lastName: lastName,
-      avatar: avatar,
+      lastName:  lastName,
+      avatar:    avatar,
     );
-
-    final data = response['data'];
-    if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
-    }
-
-    final userData = data['user'];
-    if (userData is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing user data');
-    }
-
-    return UserModel.fromJson(userData);
+    return _parseUserFromResponse(response);
   }
 
   /// Récupère le profil utilisateur.
   Future<UserModel> getProfile() async {
     final response = await _dataSource.getProfile();
+    return _parseUserFromResponse(response);
+  }
 
+  // --- Helpers ---
+
+  RegisterResult _parseAuthResponse(Map<String, dynamic> response) {
     final data = response['data'];
-    if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
-    }
+    if (data is! Map<String, dynamic>) throw Exception('Invalid API response: missing data');
 
-    final userData = data['user'];
-    if (userData is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing user data');
-    }
+    final userData     = data['user'];
+    final accessToken  = data['access_token']  as String?;
+    final refreshToken = data['refresh_token'] as String?;
 
+    if (userData is! Map<String, dynamic>) throw Exception('Missing user data');
+    if (accessToken == null || refreshToken == null) throw Exception('Missing tokens');
+
+    final user = UserModel.fromJson(userData);
+    _storageService.saveTokens(access: accessToken, refresh: refreshToken);
+
+    return RegisterResult(
+      user:         user,
+      accessToken:  accessToken,
+      refreshToken: refreshToken,
+    );
+  }
+
+  UserModel _parseUserFromResponse(Map<String, dynamic> response) {
+    final data     = response['data'];
+    final userData = (data is Map<String, dynamic>) ? data['user'] : null;
+    if (userData is! Map<String, dynamic>) throw Exception('Invalid API response: missing user');
     return UserModel.fromJson(userData);
   }
 }

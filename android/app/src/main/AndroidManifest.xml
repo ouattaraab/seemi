@@ -7,7 +7,7 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28"/>
     <application
-        android:label="ppv_app"
+        android:label="SeeMi"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:networkSecurityConfig="@xml/network_security_config">
@@ -39,7 +39,7 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data
                     android:scheme="https"
-                    android:host="VOTRE_DOMAINE_HOSTINGER"
+                    android:host="seemi.click"
                     android:pathPrefix="/c/"/>
             </intent-filter>
         </activity>

@@ -70,7 +70,7 @@ class KycProvider extends ChangeNotifier {
       age--;
     }
     if (age < 18) {
-      _error = 'Vous devez avoir au moins 18 ans pour utiliser PPV.';
+      _error = 'Vous devez avoir au moins 18 ans pour utiliser SeeMi.';
       _safeNotify();
       return false;
     }

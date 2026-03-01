@@ -63,7 +63,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         backgroundColor: AppColors.kBgBase,
         elevation: 0,
         title: const Text(
-          'PPV – Paye Pour Voir',
+          'SeeMi',
           style: TextStyle(
             color: AppColors.kPrimary,
             fontWeight: FontWeight.w700,

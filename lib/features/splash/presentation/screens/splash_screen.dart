@@ -68,12 +68,12 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             SizedBox(height: AppSpacing.kSpaceLg),
             Text(
-              'PPV',
+              'SeeMi',
               style: AppTextStyles.kDisplayLarge,
             ),
             SizedBox(height: AppSpacing.kSpaceSm),
             Text(
-              'Paye Pour Voir',
+              'Monétisez vos contenus',
               style: AppTextStyles.kBodyMedium,
             ),
           ],

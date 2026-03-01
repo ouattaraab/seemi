@@ -11,7 +11,7 @@ class DesignShowcaseScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('PPV Design System')),
+      appBar: AppBar(title: const Text('SeeMi Design System')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.kScreenMargin),
         children: [

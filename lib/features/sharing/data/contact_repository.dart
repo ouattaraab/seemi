@@ -48,7 +48,7 @@ class ContactRepositoryImpl implements ContactRepository {
       String shareUrl, List<String> phoneNumbers) async {
     final numbers = phoneNumbers.join(',');
     final message = Uri.encodeComponent(
-        'Découvrez ce contenu exclusif sur PPV ! Payez pour le voir 👀\n$shareUrl');
+        'Découvrez ce contenu exclusif sur SeeMi ! Payez pour le voir 👀\n$shareUrl');
     final uri = Uri.parse('sms:$numbers?body=$message');
     if (!await canLaunchUrl(uri)) {
       throw Exception(

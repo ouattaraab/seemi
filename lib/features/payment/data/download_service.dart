@@ -81,9 +81,9 @@ class DownloadService {
       final isVideo = const {'mp4', 'mov', 'avi', 'mkv', 'webm'}.contains(ext);
 
       if (isVideo) {
-        await _gal.putVideo(tmpPath, album: 'PPV');
+        await _gal.putVideo(tmpPath, album: 'SeeMi');
       } else {
-        await _gal.putImage(tmpPath, album: 'PPV');
+        await _gal.putImage(tmpPath, album: 'SeeMi');
       }
     } finally {
       // Nettoyer le fichier temporaire dans tous les cas (succès ou erreur)

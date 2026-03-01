@@ -43,7 +43,7 @@ class TosScreen extends StatelessWidget {
                       const SizedBox(height: AppSpacing.kSpaceMd),
                       Text(
                         'Veuillez lire et accepter les conditions générales '
-                        "d'utilisation de PPV avant de continuer.",
+                        "d'utilisation de SeeMi avant de continuer.",
                         style: AppTextStyles.kBodyMedium.copyWith(
                           color: AppColors.kTextSecondary,
                         ),
@@ -89,7 +89,7 @@ class TosScreen extends StatelessWidget {
       child: Text(
         'Article 1 – Objet\n\n'
         "Les présentes Conditions Générales d'Utilisation (CGU) régissent "
-        "l'accès et l'utilisation de la plateforme PPV (Paye Pour Voir), "
+        "l'accès et l'utilisation de la plateforme SeeMi, "
         'un service permettant aux créateurs de contenu de monétiser '
         'leurs photos et vidéos.\n\n'
         "Article 2 – Conditions d'accès\n\n"
@@ -101,7 +101,7 @@ class TosScreen extends StatelessWidget {
         'détient les droits. Tout contenu illicite sera supprimé et '
         'le compte pourra être suspendu.\n\n'
         'Article 4 – Paiements et commissions\n\n'
-        'PPV prélève une commission sur chaque transaction. Les '
+        'SeeMi prélève une commission sur chaque transaction. Les '
         'reversements sont effectués selon les modalités définies '
         'dans la section dédiée.\n\n'
         'Article 5 – Protection des données\n\n'
@@ -166,7 +166,7 @@ class TosScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.kSpaceMd),
             Text(
               "Vous devez accepter les conditions générales d'utilisation "
-              'pour continuer à utiliser PPV.',
+              'pour continuer à utiliser SeeMi.',
               style: AppTextStyles.kBodyMedium.copyWith(
                 color: AppColors.kTextSecondary,
               ),

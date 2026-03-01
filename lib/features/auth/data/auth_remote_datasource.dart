@@ -1,90 +1,77 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase;
 
 /// Source de données distante pour l'authentification.
 ///
-/// Orchestre Firebase Auth (OTP) et l'API Laravel (JWT).
+/// Utilise email/mot de passe (pas Firebase OTP).
 class AuthRemoteDataSource {
-  final firebase.FirebaseAuth _firebaseAuth;
   final Dio _dio;
 
-  AuthRemoteDataSource({
-    firebase.FirebaseAuth? firebaseAuth,
-    required Dio dio,
-  })  : _firebaseAuth = firebaseAuth ?? firebase.FirebaseAuth.instance,
-        _dio = dio;
+  AuthRemoteDataSource({required Dio dio}) : _dio = dio;
 
-  /// Envoie un OTP au numéro de téléphone via Firebase Auth.
-  ///
-  /// Retourne le [verificationId] via le callback [onCodeSent].
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required void Function(String verificationId, int? resendToken) onCodeSent,
-    required void Function(firebase.FirebaseAuthException error)
-        onVerificationFailed,
-    required void Function(firebase.PhoneAuthCredential credential)
-        onVerificationCompleted,
-    required void Function(String verificationId) onCodeAutoRetrievalTimeout,
-    int? forceResendingToken,
-  }) async {
-    await _firebaseAuth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      verificationCompleted: onVerificationCompleted,
-      verificationFailed: onVerificationFailed,
-      codeSent: onCodeSent,
-      codeAutoRetrievalTimeout: onCodeAutoRetrievalTimeout,
-      forceResendingToken: forceResendingToken,
-      timeout: const Duration(seconds: 60),
-    );
-  }
-
-  /// Vérifie le code OTP saisi par l'utilisateur et se connecte à Firebase.
-  ///
-  /// Retourne le [UserCredential] Firebase.
-  Future<firebase.UserCredential> verifyOtp({
-    required String verificationId,
-    required String smsCode,
-  }) async {
-    final credential = firebase.PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
-    return _firebaseAuth.signInWithCredential(credential);
-  }
-
-  /// Récupère le Firebase ID token de l'utilisateur connecté.
-  Future<String?> getFirebaseIdToken() async {
-    return _firebaseAuth.currentUser?.getIdToken();
-  }
-
-  /// Enregistre l'utilisateur côté API Laravel avec le Firebase token.
-  ///
-  /// Retourne la réponse de `POST /api/v1/auth/register`.
-  Future<Map<String, dynamic>> registerWithFirebaseToken({
-    required String firebaseToken,
-    String? firstName,
-    String? lastName,
+  /// Inscrit un nouvel utilisateur avec email + mot de passe.
+  Future<Map<String, dynamic>> registerWithEmailPassword({
+    required String firstName,
+    required String lastName,
+    required String phone,
+    required String email,
+    required String dateOfBirth,
+    required String password,
+    required String passwordConfirmation,
   }) async {
     try {
       final response = await _dio.post(
         '/auth/register',
         data: {
-          'firebase_token': firebaseToken,
-          // ignore: use_null_aware_elements
-          if (firstName != null) 'first_name': firstName,
-          // ignore: use_null_aware_elements
-          if (lastName != null) 'last_name': lastName,
+          'first_name':             firstName,
+          'last_name':              lastName,
+          'phone':                  phone,
+          'email':                  email,
+          'date_of_birth':          dateOfBirth,
+          'password':               password,
+          'password_confirmation':  passwordConfirmation,
         },
       );
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       final responseData = e.response?.data;
-      final message = responseData is Map
-          ? responseData['message'] as String? ?? 'Erreur serveur'
-          : 'Erreur de connexion au serveur';
-      throw Exception(message);
+      if (responseData is Map) {
+        final errors = responseData['errors'];
+        if (errors is Map && errors.isNotEmpty) {
+          final firstField = errors.values.first;
+          final message = firstField is List ? firstField.first as String : firstField.toString();
+          throw AuthApiException(message: message);
+        }
+        final message = responseData['message'] as String? ?? 'Erreur serveur';
+        throw AuthApiException(message: message);
+      }
+      throw const AuthApiException(message: 'Erreur de connexion au serveur');
+    }
+  }
+
+  /// Connecte un utilisateur avec email ou téléphone + mot de passe.
+  Future<Map<String, dynamic>> loginWithEmailPassword({
+    required String emailOrPhone,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/auth/login',
+        data: {
+          'email_or_phone': emailOrPhone,
+          'password':       password,
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      if (responseData is Map) {
+        final code    = responseData['code'] as String?;
+        final message = responseData['message'] as String? ?? 'Erreur serveur';
+        throw AuthApiException(message: message, code: code);
+      }
+      throw const AuthApiException(message: 'Erreur de connexion au serveur');
     }
   }
 
@@ -96,10 +83,10 @@ class AuthRemoteDataSource {
     required File document,
   }) async {
     final formData = FormData.fromMap({
-      'first_name': firstName,
-      'last_name': lastName,
+      'first_name':    firstName,
+      'last_name':     lastName,
       'date_of_birth': dateOfBirth,
-      'id_document': await MultipartFile.fromFile(
+      'id_document':   await MultipartFile.fromFile(
         document.path,
         filename: document.path.split('/').last,
       ),
@@ -118,16 +105,9 @@ class AuthRemoteDataSource {
   }
 
   /// Enregistre l'acceptation des CGU.
-  Future<Map<String, dynamic>> acceptTos({
-    required String type,
-  }) async {
+  Future<Map<String, dynamic>> acceptTos({required String type}) async {
     try {
-      final response = await _dio.post(
-        '/auth/accept-tos',
-        data: {
-          'type': type,
-        },
-      );
+      final response = await _dio.post('/auth/accept-tos', data: {'type': type});
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       final responseData = e.response?.data;
@@ -135,45 +115,15 @@ class AuthRemoteDataSource {
           ? responseData['message'] as String? ?? 'Erreur serveur'
           : 'Erreur de connexion au serveur';
       throw Exception(message);
-    }
-  }
-
-  /// Authentifie un utilisateur existant côté API avec le Firebase token.
-  ///
-  /// Retourne la réponse de `POST /api/v1/auth/login`.
-  Future<Map<String, dynamic>> login({
-    required String firebaseToken,
-  }) async {
-    try {
-      final response = await _dio.post(
-        '/auth/login',
-        data: {'firebase_token': firebaseToken},
-      );
-      return response.data as Map<String, dynamic>;
-    } on DioException catch (e) {
-      final responseData = e.response?.data;
-      if (responseData is Map) {
-        final code = responseData['code'] as String?;
-        final message =
-            responseData['message'] as String? ?? 'Erreur serveur';
-        throw AuthApiException(message: message, code: code);
-      }
-      throw const AuthApiException(message: 'Erreur de connexion au serveur');
     }
   }
 
   /// Rafraîchit le JWT access token.
-  ///
-  /// Retourne la réponse de `POST /api/v1/auth/refresh`.
-  Future<Map<String, dynamic>> refreshToken({
-    required String refreshToken,
-  }) async {
+  Future<Map<String, dynamic>> refreshToken({required String refreshToken}) async {
     try {
       final response = await _dio.post(
         '/auth/refresh',
-        options: Options(
-          headers: {'Authorization': 'Bearer $refreshToken'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $refreshToken'}),
       );
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
@@ -185,12 +135,12 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Déconnecte l'utilisateur côté API (invalide le JWT).
+  /// Déconnecte l'utilisateur côté API.
   Future<void> logout() async {
     try {
       await _dio.post('/auth/logout');
     } on DioException {
-      // Ignorer les erreurs lors du logout — on clear les tokens localement
+      // Ignorer — on clear les tokens localement
     }
   }
 
@@ -202,17 +152,16 @@ class AuthRemoteDataSource {
   }) async {
     final map = <String, dynamic>{};
     if (firstName != null) map['first_name'] = firstName;
-    if (lastName != null) map['last_name'] = lastName;
+    if (lastName != null)  map['last_name']  = lastName;
     if (avatar != null) {
       map['avatar'] = await MultipartFile.fromFile(
         avatar.path,
         filename: avatar.path.split('/').last,
       );
     }
-    final formData = FormData.fromMap(map);
 
     try {
-      final response = await _dio.put('/profile', data: formData);
+      final response = await _dio.put('/profile', data: FormData.fromMap(map));
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       final responseData = e.response?.data;
@@ -223,7 +172,7 @@ class AuthRemoteDataSource {
     }
   }
 
-  /// Récupère le profil utilisateur depuis l'API.
+  /// Récupère le profil utilisateur.
   Future<Map<String, dynamic>> getProfile() async {
     try {
       final response = await _dio.get('/profile');
@@ -238,20 +187,11 @@ class AuthRemoteDataSource {
   }
 
   /// Enregistre ou met à jour le FCM token du device.
-  ///
-  /// POST /api/v1/profile/fcm-token
   Future<void> registerFcmToken(String token) async {
     try {
-      await _dio.post<void>(
-        '/profile/fcm-token',
-        data: {'token': token},
-      );
-    } on DioException catch (e) {
-      final responseData = e.response?.data;
-      final message = responseData is Map
-          ? responseData['message'] as String? ?? 'Erreur serveur'
-          : 'Erreur de connexion au serveur';
-      throw Exception(message);
+      await _dio.post<void>('/profile/fcm-token', data: {'token': token});
+    } on DioException {
+      // Best-effort — ignorer silencieusement
     }
   }
 }

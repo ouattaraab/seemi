@@ -6,7 +6,6 @@ import 'package:ppv_app/core/storage/secure_storage_service.dart';
 import 'package:ppv_app/features/auth/presentation/screens/kyc_screen.dart';
 import 'package:ppv_app/features/auth/presentation/screens/tos_screen.dart';
 import 'package:ppv_app/features/auth/presentation/screens/login_screen.dart';
-import 'package:ppv_app/features/auth/presentation/screens/otp_screen.dart';
 import 'package:ppv_app/features/auth/presentation/screens/register_screen.dart';
 import 'package:ppv_app/features/design_showcase/presentation/screens/design_showcase_screen.dart';
 import 'package:ppv_app/features/content/data/public_content_repository.dart';
@@ -37,7 +36,6 @@ class AppRouter {
     RouteNames.kRouteOnboarding,
     RouteNames.kRouteLogin,
     RouteNames.kRouteRegister,
-    RouteNames.kRouteOtp,
     RouteNames.kRouteDesignShowcase,
   ];
 
@@ -61,23 +59,6 @@ class AppRouter {
       GoRoute(
         path: RouteNames.kRouteRegister,
         builder: (context, state) => const RegisterScreen(),
-      ),
-      GoRoute(
-        path: RouteNames.kRouteOtp,
-        builder: (context, state) {
-          final extra = state.extra;
-          if (extra is Map<String, dynamic>) {
-            return OtpScreen(
-              phoneNumber: extra['phoneNumber'] as String? ?? '',
-              isLoginFlow: extra['isLoginFlow'] as bool? ?? false,
-            );
-          }
-          // Backward compatibility: extra as String (register flow)
-          return OtpScreen(
-            phoneNumber: extra as String? ?? '',
-            isLoginFlow: false,
-          );
-        },
       ),
       GoRoute(
         path: RouteNames.kRouteTos,

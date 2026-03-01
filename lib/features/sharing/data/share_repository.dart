@@ -10,8 +10,8 @@ class ShareRepositoryImpl implements ShareRepository {
   @override
   Future<void> shareContent(String shareUrl) async {
     await Share.share(
-      'Découvrez ce contenu exclusif sur PPV ! Payez pour le voir 👀\n$shareUrl',
-      subject: 'Contenu PPV',
+      'Découvrez ce contenu exclusif sur SeeMi ! Payez pour le voir 👀\n$shareUrl',
+      subject: 'Contenu SeeMi',
     );
   }
 }

@@ -74,7 +74,7 @@ class TosModal extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'En continuant à utiliser PPV, vous confirmez avoir '
+                      'En continuant à utiliser SeeMi, vous confirmez avoir '
                       "lu et accepté nos conditions générales d'utilisation "
                       'et notre politique de confidentialité.',
                       style: AppTextStyles.kBodyMedium.copyWith(
