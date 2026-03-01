@@ -5,13 +5,11 @@ import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/services/fcm_service.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/features/auth/presentation/screens/profile_screen.dart';
-import 'package:ppv_app/features/content/presentation/widgets/my_contents_tab.dart';
+import 'package:ppv_app/features/home/presentation/widgets/home_dashboard_tab.dart';
 import 'package:ppv_app/features/notifications/presentation/notification_list_screen.dart';
 import 'package:ppv_app/features/notifications/presentation/notification_provider.dart';
+import 'package:ppv_app/features/wallet/presentation/wallet_screen.dart';
 
-/// Écran principal — 3 onglets : Accueil | Publier (FAB) | Profil & Gains.
-///
-/// Le contenu du portefeuille (Gains) est intégré dans l'onglet Profil.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -20,8 +18,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 0 = Accueil, 1 = FAB (skip), 2 = Profil
+  // 0 = Accueil, 1 = Upload (push), 2 = Portefeuille, 3 = Profil
   int _currentIndex = 0;
+
+  // Mapping nav index → stack index (index 1 = Upload n'a pas de stack)
+  int get _stackIndex => _currentIndex > 1 ? _currentIndex - 1 : _currentIndex;
 
   @override
   void initState() {
@@ -29,27 +30,17 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final notifProvider = context.read<NotificationProvider>();
-
-      // Chargement initial du badge et de la liste.
       notifProvider.loadNotifications(refresh: true);
 
-      // ── FCM foreground : rafraîchit le badge en temps réel ──────────────
-      // Quand une notification push arrive pendant que l'app est ouverte,
-      // on recharge la liste pour mettre à jour le compteur non lu.
       FcmService.instance.listenForegroundMessages((_) {
-        if (mounted) {
-          context.read<NotificationProvider>().loadNotifications(refresh: true);
-        }
+        if (mounted) context.read<NotificationProvider>().loadNotifications(refresh: true);
       });
 
-      // ── FCM background tap : ouvre l'écran Notifications ────────────────
-      // Quand l'utilisateur tape sur une notif système (app était en arrière-plan).
       FcmService.instance.listenMessageOpenedApp((_) {
         if (!mounted) return;
         _openNotificationScreen(context.read<NotificationProvider>());
       });
 
-      // ── FCM terminated tap : app lancée via notif ────────────────────────
       FcmService.instance.getInitialMessage().then((msg) {
         if (msg != null && mounted) {
           _openNotificationScreen(context.read<NotificationProvider>());
@@ -75,127 +66,107 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String get _appBarTitle => switch (_currentIndex) {
-        2 => 'Mon Profil',
-        _ => 'SeeMi',
-      };
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.kBgBase,
-      appBar: AppBar(
-        backgroundColor: AppColors.kBgBase,
-        title: Text(
-          _appBarTitle,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          Consumer<NotificationProvider>(
-            builder: (context, provider, _) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.notifications_outlined,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                    onPressed: () => _openNotificationScreen(provider),
-                  ),
-                  if (provider.unreadCount > 0)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(
-                          color: AppColors.kError,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints:
-                            const BoxConstraints(minWidth: 18, minHeight: 18),
-                        child: Text(
-                          provider.unreadCount > 99
-                              ? '99+'
-                              : '${provider.unreadCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
       body: IndexedStack(
-        index: _currentIndex,
+        index: _stackIndex,
         children: const [
-          MyContentsTab(),       // 0 – Accueil
-          SizedBox.shrink(),     // 1 – FAB placeholder (jamais affiché)
-          ProfileScreen(),       // 2 – Profil + Gains
+          HomeDashboardTab(), // stack 0 → nav 0
+          WalletScreen(),     // stack 1 → nav 2
+          ProfileScreen(),    // stack 2 → nav 3
         ],
       ),
-      floatingActionButton: FloatingActionButton.large(
-        onPressed: () => context.push(RouteNames.kRouteUpload),
-        backgroundColor: AppColors.kPrimary,
-        foregroundColor: Colors.white,
-        elevation: 6,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add_rounded, size: 34),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.kBgBase,
+          border: Border(top: BorderSide(color: AppColors.kBorder, width: 1)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                _NavItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: 'Accueil',
+                  isActive: _currentIndex == 0,
+                  onTap: () => setState(() => _currentIndex = 0),
+                ),
+                _NavItem(
+                  icon: Icons.add_box_outlined,
+                  activeIcon: Icons.add_box_rounded,
+                  label: 'Publier',
+                  isActive: false,
+                  onTap: () => context.push(RouteNames.kRouteUpload),
+                ),
+                _NavItem(
+                  icon: Icons.account_balance_wallet_outlined,
+                  activeIcon: Icons.account_balance_wallet_rounded,
+                  label: 'Portefeuille',
+                  isActive: _currentIndex == 2,
+                  onTap: () => setState(() => _currentIndex = 2),
+                ),
+                _NavItem(
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Profil',
+                  isActive: _currentIndex == 3,
+                  onTap: () => setState(() => _currentIndex = 3),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        backgroundColor: AppColors.kBgBase,
-        selectedItemColor: AppColors.kPrimary,
-        unselectedItemColor: AppColors.kTextTertiary,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
-        selectedLabelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isActive ? activeIcon : icon,
+              size: 26,
+              color: isActive ? AppColors.kPrimary : AppColors.kTextTertiary,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: isActive ? AppColors.kPrimary : AppColors.kTextTertiary,
+              ),
+            ),
+          ],
         ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-        elevation: 12,
-        onTap: (index) {
-          if (index == 1) return; // FAB tab — skip
-          setState(() => _currentIndex = index);
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined, size: 28),
-            activeIcon: Icon(Icons.home_rounded, size: 28),
-            label: 'Accueil',
-          ),
-          BottomNavigationBarItem(
-            icon: SizedBox.shrink(),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline, size: 28),
-            activeIcon: Icon(Icons.person_rounded, size: 28),
-            label: 'Profil',
-          ),
-        ],
       ),
     );
   }

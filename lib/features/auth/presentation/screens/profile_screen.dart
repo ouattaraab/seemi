@@ -1,22 +1,12 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/auth/presentation/profile_provider.dart';
-import 'package:ppv_app/features/payout/presentation/payout_method_provider.dart';
-import 'package:ppv_app/features/wallet/presentation/wallet_provider.dart';
-import 'package:ppv_app/features/wallet/presentation/widgets/wallet_card.dart';
-import 'package:ppv_app/features/wallet/presentation/widgets/withdrawal_bottom_sheet.dart';
 
-/// Onglet Profil — affiche le portefeuille (Gains) puis le profil utilisateur.
-///
-/// Remplace les deux anciens onglets "Gains" et "Profil".
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -25,490 +15,320 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  File? _selectedAvatar;
-  bool _isEditing = false;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      context.read<ProfileProvider>().loadProfile();
-      // Portefeuille
-      final wallet = context.read<WalletProvider>();
-      wallet.loadBalance();
-      wallet.loadWithdrawals();
-      context.read<PayoutMethodProvider>().loadExistingPayoutMethod();
+      if (mounted) context.read<ProfileProvider>().loadProfile();
     });
   }
 
   @override
-  void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    super.dispose();
-  }
-
-  // ─── Build ───────────────────────────────────────────────────────────────
-
-  @override
   Widget build(BuildContext context) {
-    return Consumer<ProfileProvider>(
-      builder: (context, provider, _) {
-        if (provider.isLoading && provider.user == null) {
-          return const Center(
-              child: CircularProgressIndicator(color: AppColors.kPrimary));
-        }
+    return SafeArea(
+      bottom: false,
+      child: Consumer<ProfileProvider>(
+        builder: (context, provider, _) {
+          final user = provider.user;
+          final fullName = [user?.firstName, user?.lastName]
+              .where((s) => s != null && s.isNotEmpty)
+              .join(' ');
+          final displayName = fullName.isNotEmpty ? fullName.toUpperCase() : 'Utilisateur';
 
-        if (provider.error != null && provider.user == null) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline,
-                    color: AppColors.kError, size: 48),
-                const SizedBox(height: AppSpacing.kSpaceMd),
-                Text(
-                  provider.error!,
-                  style: AppTextStyles.kBodyMedium
-                      .copyWith(color: AppColors.kError),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.kSpaceMd),
-                FilledButton(
-                  onPressed: () => provider.loadProfile(),
-                  child: const Text('Réessayer'),
-                ),
-              ],
-            ),
-          );
-        }
+          return RefreshIndicator(
+            color: AppColors.kPrimary,
+            onRefresh: () => provider.loadProfile(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  // ── Header profil ─────────────────────────────────────
+                  _buildProfileHeader(context, provider, displayName, user?.phone ?? ''),
 
-        final user = provider.user;
-        if (user == null) {
-          return const Center(
-              child: CircularProgressIndicator(color: AppColors.kPrimary));
-        }
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.kScreenMargin),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
 
-        final fullName = [user.firstName, user.lastName]
-            .where((s) => s != null && s.isNotEmpty)
-            .join(' ');
+                        // ── Paramètres du compte ──────────────────────
+                        const Text('Paramètres du compte', style: AppTextStyles.kTitleLarge),
+                        const SizedBox(height: 12),
+                        _buildMenuSection([
+                          _MenuItem(
+                            icon: Icons.lock_outline_rounded,
+                            label: 'Mot de passe & Sécurité',
+                            onTap: () {},
+                          ),
+                          _MenuItem(
+                            icon: Icons.notifications_outlined,
+                            label: 'Notifications',
+                            onTap: () {},
+                          ),
+                        ]),
 
-        return RefreshIndicator(
-          color: AppColors.kPrimary,
-          onRefresh: () async {
-            await Future.wait([
-              provider.loadProfile(),
-              context.read<WalletProvider>().loadBalance(),
-              context.read<WalletProvider>().loadWithdrawals(),
-              context.read<PayoutMethodProvider>().loadExistingPayoutMethod(),
-            ]);
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(AppSpacing.kScreenMargin),
-            child: Column(
-              children: [
-                const SizedBox(height: AppSpacing.kSpaceMd),
+                        const SizedBox(height: 24),
 
-                // ─── Section Gains ────────────────────────────────────────
-                _buildWalletSection(),
+                        // ── Support & Légal ───────────────────────────
+                        const Text('Support & Légal', style: AppTextStyles.kTitleLarge),
+                        const SizedBox(height: 12),
+                        _buildMenuSection([
+                          _MenuItem(
+                            icon: Icons.chat_bubble_outline_rounded,
+                            label: 'Contacter le support',
+                            onTap: () {},
+                          ),
+                          _MenuItem(
+                            icon: Icons.description_outlined,
+                            label: 'Conditions générales',
+                            onTap: () {},
+                          ),
+                          _MenuItem(
+                            icon: Icons.shield_outlined,
+                            label: 'Politique de confidentialité',
+                            onTap: () {},
+                          ),
+                        ]),
 
-                const SizedBox(height: AppSpacing.kSpaceLg),
-                _buildDividerWithLabel('Mon Profil'),
-                const SizedBox(height: AppSpacing.kSpaceLg),
+                        const SizedBox(height: 32),
 
-                // ─── Avatar ───────────────────────────────────────────────
-                _buildAvatar(user.avatarUrl),
-                const SizedBox(height: AppSpacing.kSpaceMd),
-
-                // Nom
-                Text(
-                  fullName.isEmpty ? 'Utilisateur' : fullName,
-                  style: AppTextStyles.kHeadlineMedium,
-                ),
-                const SizedBox(height: AppSpacing.kSpaceXs),
-
-                // Téléphone
-                Text(
-                  user.phone,
-                  style: AppTextStyles.kBodyMedium
-                      .copyWith(color: AppColors.kTextSecondary),
-                ),
-                const SizedBox(height: AppSpacing.kSpaceSm),
-
-                // Badge KYC
-                _buildKycBadge(user.kycStatus),
-                const SizedBox(height: AppSpacing.kSpaceLg),
-
-                // Formulaire ou bouton édition
-                if (_isEditing) _buildEditForm(provider) else _buildEditButton(),
-
-                const SizedBox(height: AppSpacing.kSpaceLg),
-
-                // Bouton déconnexion
-                SizedBox(
-                  width: double.infinity,
-                  height: AppSpacing.kButtonHeight,
-                  child: FilledButton.icon(
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout_rounded, size: 22),
-                    label: const Text('Déconnexion'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.kError,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.kSpaceLg),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ─── Section portefeuille ─────────────────────────────────────────────────
-
-  Widget _buildWalletSection() {
-    return Consumer2<WalletProvider, PayoutMethodProvider>(
-      builder: (context, walletProvider, payoutProvider, _) {
-        final hasPayoutMethod =
-            payoutProvider.existingPayoutMethod?.isActive ?? false;
-        final canWithdraw = walletProvider.balance > 0 &&
-            hasPayoutMethod &&
-            !walletProvider.isWithdrawing;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Carte solde
-            WalletCard(
-              balanceCentimes: walletProvider.balance,
-              isLoading: walletProvider.isLoading,
-            ),
-
-            if (walletProvider.error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                walletProvider.error!,
-                style: const TextStyle(
-                    color: AppColors.kError, fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
-            ],
-
-            const SizedBox(height: 12),
-
-            // Total gains
-            Center(
-              child: Text(
-                '${WalletCard.formatAmount(walletProvider.totalCredits ~/ 100)} gagnés au total',
-                key: const Key('total-credits-text'),
-                style: AppTextStyles.kBodyMedium
-                    .copyWith(color: AppColors.kTextSecondary),
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.kSpaceMd),
-
-            // Bouton Retirer
-            SizedBox(
-              width: double.infinity,
-              height: AppSpacing.kButtonHeight,
-              child: ElevatedButton.icon(
-                key: const Key('btn-withdraw'),
-                onPressed: canWithdraw
-                    ? () {
-                        walletProvider.clearWithdrawalError();
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: AppColors.kBgElevated,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(AppSpacing.kRadiusXl),
+                        // ── Déconnexion ───────────────────────────────
+                        SizedBox(
+                          width: double.infinity,
+                          height: AppSpacing.kButtonHeight,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _logout(context, provider),
+                            icon: const Icon(Icons.logout_rounded, size: 20),
+                            label: const Text('Se déconnecter'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.kError,
+                              side: BorderSide(
+                                color: AppColors.kError.withValues(alpha: 0.3),
+                              ),
+                              backgroundColor: AppColors.kError.withValues(alpha: 0.05),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+                              ),
+                              textStyle: const TextStyle(
+                                fontFamily: 'Plus Jakarta Sans',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
-                          builder: (_) => const WithdrawalBottomSheet(),
-                        );
-                      }
-                    : null,
-                icon: const Icon(Icons.account_balance_wallet_rounded,
-                    size: 22),
-                label: const Text('Retirer mes gains'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.kPrimary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.kBgElevated,
-                  disabledForegroundColor: AppColors.kTextTertiary,
-                ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Version
+                        Center(
+                          child: Text(
+                            'VERSION SEEMI APP 1.0.0',
+                            style: AppTextStyles.kCaption.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 80),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
 
-            if (!hasPayoutMethod && !walletProvider.isLoading) ...[
-              const SizedBox(height: 8),
-              Center(
-                child: Text(
-                  'Configurez un moyen de reversement pour retirer',
-                  style: AppTextStyles.kCaption,
-                  textAlign: TextAlign.center,
+  Widget _buildProfileHeader(
+    BuildContext context,
+    ProfileProvider provider,
+    String displayName,
+    String phone,
+  ) {
+    final user = provider.user;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
+      decoration: BoxDecoration(
+        color: AppColors.kPrimary.withValues(alpha: 0.05),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(48)),
+        border: Border(
+          bottom: BorderSide(color: AppColors.kPrimary.withValues(alpha: 0.1)),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Avatar
+          Stack(
+            children: [
+              Container(
+                width: 112,
+                height: 112,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.kAccent,
+                    width: 2,
+                  ),
+                ),
+                child: ClipOval(
+                  child: user?.avatarUrl != null
+                      ? Image.network(
+                          user!.avatarUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, e, st) => _defaultAvatar(displayName),
+                        )
+                      : _defaultAvatar(displayName),
+                ),
+              ),
+              Positioned(
+                bottom: 2,
+                right: 2,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.kAccent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.kBgBase, width: 3),
+                  ),
+                  child: const Icon(Icons.edit_rounded, color: Colors.white, size: 14),
                 ),
               ),
             ],
-          ],
-        );
-      },
-    );
-  }
-
-  // ─── Divider avec label ───────────────────────────────────────────────────
-
-  Widget _buildDividerWithLabel(String label) {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: AppColors.kDivider)),
-        Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: AppSpacing.kSpaceMd),
-          child: Text(
-            label,
-            style: AppTextStyles.kCaption.copyWith(
-              color: AppColors.kTextTertiary,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
           ),
-        ),
-        const Expanded(child: Divider(color: AppColors.kDivider)),
-      ],
-    );
-  }
-
-  // ─── Avatar ───────────────────────────────────────────────────────────────
-
-  Widget _buildAvatar(String? avatarUrl) {
-    return GestureDetector(
-      onTap: _isEditing ? _pickAvatar : null,
-      child: Stack(
-        children: [
-          CircleAvatar(
-            radius: 52,
-            backgroundColor: AppColors.kBgElevated,
-            backgroundImage: _selectedAvatar != null
-                ? FileImage(_selectedAvatar!)
-                : (avatarUrl != null
-                    ? NetworkImage(avatarUrl) as ImageProvider
-                    : null),
-            onBackgroundImageError:
-                avatarUrl != null ? (_, __) {} : null,
-            child: (_selectedAvatar == null && avatarUrl == null)
-                ? const Icon(Icons.person_rounded,
-                    size: 52, color: AppColors.kTextTertiary)
-                : null,
+          const SizedBox(height: 12),
+          Text(
+            displayName,
+            style: AppTextStyles.kHeadlineMedium.copyWith(fontWeight: FontWeight.w900),
+            textAlign: TextAlign.center,
           ),
-          if (_isEditing)
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: AppColors.kPrimary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.camera_alt_rounded,
-                    size: 18, color: Colors.white),
-              ),
-            ),
+          const SizedBox(height: 4),
+          Text(
+            phone.isNotEmpty ? phone : 'Téléphone non renseigné',
+            style: AppTextStyles.kBodyMedium.copyWith(color: AppColors.kTextSecondary),
+          ),
+          const SizedBox(height: 12),
+          // Badge KYC / Pro
+          _buildKycBadge(user?.kycStatus ?? 'none'),
         ],
       ),
     );
   }
 
-  // ─── Badge KYC ────────────────────────────────────────────────────────────
+  Widget _defaultAvatar(String name) {
+    return Container(
+      color: AppColors.kPrimary,
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0] : 'U',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 36),
+        ),
+      ),
+    );
+  }
 
   Widget _buildKycBadge(String kycStatus) {
     final (color, label) = switch (kycStatus) {
-      'approved' => (AppColors.kSuccess, 'KYC vérifié'),
-      'pending' => (AppColors.kWarning, 'KYC en attente'),
+      'approved' => (AppColors.kAccent, 'Créateur Vérifié'),
+      'pending'  => (AppColors.kWarning, 'KYC en attente'),
       'rejected' => (AppColors.kError, 'KYC rejeté'),
-      _ => (AppColors.kTextTertiary, 'KYC non soumis'),
+      _          => (AppColors.kTextSecondary, 'KYC non soumis'),
     };
-
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.kSpaceMd,
-        vertical: AppSpacing.kSpaceXs + 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusButton),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
-      child: Text(
-        label,
-        style: AppTextStyles.kLabelLarge.copyWith(color: color),
-      ),
-    );
-  }
-
-  // ─── Bouton éditer ────────────────────────────────────────────────────────
-
-  Widget _buildEditButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: AppSpacing.kButtonHeight,
-      child: OutlinedButton.icon(
-        onPressed: () {
-          final user = context.read<ProfileProvider>().user;
-          _firstNameController.text = user?.firstName ?? '';
-          _lastNameController.text = user?.lastName ?? '';
-          _selectedAvatar = null;
-          setState(() => _isEditing = true);
-        },
-        icon: const Icon(Icons.edit_rounded, size: 20),
-        label: const Text('Modifier le profil'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.kTextPrimary,
-          side: const BorderSide(color: AppColors.kOutline, width: 1.5),
-        ),
-      ),
-    );
-  }
-
-  // ─── Formulaire d'édition ─────────────────────────────────────────────────
-
-  Widget _buildEditForm(ProfileProvider provider) {
-    return Form(
-      key: _formKey,
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TextFormField(
-            controller: _firstNameController,
-            decoration: const InputDecoration(
-              labelText: 'Prénom',
-              prefixIcon: Icon(Icons.person_outline, size: 22),
+          Icon(Icons.star_rounded, color: color, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
             ),
-            style: AppTextStyles.kBodyLarge,
-            maxLength: 100,
-          ),
-          const SizedBox(height: AppSpacing.kSpaceMd),
-          TextFormField(
-            controller: _lastNameController,
-            decoration: const InputDecoration(
-              labelText: 'Nom',
-              prefixIcon: Icon(Icons.person_outline, size: 22),
-            ),
-            style: AppTextStyles.kBodyLarge,
-            maxLength: 100,
-          ),
-          const SizedBox(height: AppSpacing.kSpaceMd),
-          TextFormField(
-            initialValue: provider.user?.phone ?? '',
-            enabled: false,
-            decoration: const InputDecoration(
-              labelText: 'Téléphone',
-              prefixIcon: Icon(Icons.phone_outlined, size: 22),
-            ),
-            style: AppTextStyles.kBodyLarge
-                .copyWith(color: AppColors.kTextTertiary),
-          ),
-          const SizedBox(height: AppSpacing.kSpaceLg),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: AppSpacing.kButtonHeight,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      _selectedAvatar = null;
-                      setState(() => _isEditing = false);
-                    },
-                    child: const Text('Annuler'),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.kSpaceMd),
-              Expanded(
-                child: SizedBox(
-                  height: AppSpacing.kButtonHeight,
-                  child: FilledButton(
-                    onPressed:
-                        provider.isLoading ? null : _submitProfile,
-                    child: provider.isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Enregistrer'),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),
     );
   }
 
-  // ─── Actions ──────────────────────────────────────────────────────────────
-
-  Future<void> _pickAvatar() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 80,
+  Widget _buildMenuSection(List<_MenuItem> items) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.kBgSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+        border: Border.all(color: AppColors.kBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+        child: Column(
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const Divider(height: 1, color: AppColors.kDivider),
+              items[i].buildRow(context),
+            ],
+          ],
+        ),
+      ),
     );
-    if (picked != null) {
-      setState(() => _selectedAvatar = File(picked.path));
-    }
   }
 
-  Future<void> _submitProfile() async {
-    final provider = context.read<ProfileProvider>();
-    final success = await provider.updateProfile(
-      firstName: _firstNameController.text.trim().isNotEmpty
-          ? _firstNameController.text.trim()
-          : null,
-      lastName: _lastNameController.text.trim().isNotEmpty
-          ? _lastNameController.text.trim()
-          : null,
-      avatar: _selectedAvatar,
-    );
-    if (!mounted) return;
-    if (success) {
-      setState(() {
-        _isEditing = false;
-        _selectedAvatar = null;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profil mis à jour avec succès'),
-          backgroundColor: AppColors.kSuccess,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'Erreur lors de la mise à jour'),
-          backgroundColor: AppColors.kError,
-        ),
-      );
-    }
+  Future<void> _logout(BuildContext context, ProfileProvider provider) async {
+    await provider.logout();
+    if (context.mounted) context.go(RouteNames.kRouteLogin);
   }
+}
 
-  Future<void> _logout() async {
-    await context.read<ProfileProvider>().logout();
-    if (mounted) context.go(RouteNames.kRouteLogin);
+class _MenuItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _MenuItem({required this.icon, required this.label, required this.onTap});
+
+  Widget buildRow(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.kBgElevated,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppColors.kPrimary, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.kBodyLarge.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: AppColors.kTextTertiary),
+          ],
+        ),
+      ),
+    );
   }
 }

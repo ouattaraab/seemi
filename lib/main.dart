@@ -27,7 +27,19 @@ import 'package:ppv_app/features/wallet/presentation/wallet_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: 'AIzaSyA2L0I78kO-1oZAsGuC_sCTO_mVYGCYwsI',
+        appId: '1:83620169310:android:d2abeba5f7d9f5ab22d6cf',
+        messagingSenderId: '83620169310',
+        projectId: 'ppv-paye-pour-voir',
+        storageBucket: 'ppv-paye-pour-voir.firebasestorage.app',
+      ),
+    );
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
   runApp(const PpvApp());
 }
 
@@ -110,10 +122,10 @@ class _PpvAppState extends State<PpvApp> {
         ),
       ],
       child: MaterialApp.router(
-        title: 'PPV - Paye Pour Voir',
+        title: 'SeeMi',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        themeMode: ThemeMode.dark,
+        themeMode: ThemeMode.light,
         routerConfig: _appRouter.router,
       ),
     );
