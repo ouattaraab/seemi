@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:ppv_app/firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:ppv_app/core/network/dio_client.dart';
 import 'package:ppv_app/core/routing/app_router.dart';
@@ -29,13 +30,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: 'AIzaSyA2L0I78kO-1oZAsGuC_sCTO_mVYGCYwsI',
-        appId: '1:83620169310:android:d2abeba5f7d9f5ab22d6cf',
-        messagingSenderId: '83620169310',
-        projectId: 'ppv-paye-pour-voir',
-        storageBucket: 'ppv-paye-pour-voir.firebasestorage.app',
-      ),
+      options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
     debugPrint('Firebase init error: $e');

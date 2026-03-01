@@ -1,0 +1,43 @@
+// Template — copier ce fichier en firebase_options.dart et remplir les vraies valeurs.
+// NE PAS committer firebase_options.dart (il est gitignored).
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) return web;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS:
+        return ios;
+      default:
+        return android;
+    }
+  }
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'VOTRE_CLE_API_ANDROID',
+    appId: 'VOTRE_APP_ID_ANDROID',
+    messagingSenderId: 'VOTRE_SENDER_ID',
+    projectId: 'VOTRE_PROJECT_ID',
+    storageBucket: 'VOTRE_PROJECT_ID.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'VOTRE_CLE_API_IOS',
+    appId: 'VOTRE_APP_ID_IOS',
+    messagingSenderId: 'VOTRE_SENDER_ID',
+    projectId: 'VOTRE_PROJECT_ID',
+    storageBucket: 'VOTRE_PROJECT_ID.firebasestorage.app',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'VOTRE_CLE_API_WEB',
+    appId: 'VOTRE_APP_ID_WEB',
+    messagingSenderId: 'VOTRE_SENDER_ID',
+    projectId: 'VOTRE_PROJECT_ID',
+    storageBucket: 'VOTRE_PROJECT_ID.firebasestorage.app',
+  );
+}
