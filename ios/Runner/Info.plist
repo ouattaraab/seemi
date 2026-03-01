@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Ppv App</string>
+	<string>SeeMi</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>ppv_app</string>
+	<string>SeeMi</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -48,13 +48,13 @@
 		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>PPV a besoin d'accéder à votre caméra pour photographier votre pièce d'identité lors de la vérification KYC.</string>
+	<string>SeeMi a besoin d'accéder à votre caméra pour photographier votre pièce d'identité lors de la vérification KYC.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>PPV a besoin d'accéder à votre galerie pour sélectionner votre pièce d'identité lors de la vérification KYC.</string>
+	<string>SeeMi a besoin d'accéder à votre galerie pour sélectionner votre pièce d'identité lors de la vérification KYC.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>PPV a besoin d'accéder à votre galerie pour enregistrer le contenu téléchargé.</string>
+	<string>SeeMi a besoin d'accéder à votre galerie pour enregistrer le contenu téléchargé.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>PPV utilise vos contacts pour envoyer le lien de contenu par SMS.</string>
+	<string>SeeMi utilise vos contacts pour envoyer le lien de contenu par SMS.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
