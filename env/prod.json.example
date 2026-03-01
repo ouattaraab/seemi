@@ -1,4 +1,4 @@
 {
-  "BASE_URL": "https://ppv-api.votredomaine.com/api/v1",
+  "BASE_URL": "https://seemi.click/api/v1",
   "ENVIRONMENT": "prod"
 }
