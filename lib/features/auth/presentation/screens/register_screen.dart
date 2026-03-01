@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
-import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/auth/presentation/auth_provider.dart';
 import 'package:ppv_app/features/auth/presentation/tos_provider.dart';
 
@@ -282,6 +281,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 elevation: 6,
                                 shadowColor: AppColors.kPrimary
                                     .withValues(alpha: 0.30),
+                                textStyle: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                               child: authProvider.isLoading
                                   ? const SizedBox(
@@ -292,14 +296,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Text(
-                                      "S'inscrire",
-                                      style: TextStyle(
-                                        fontFamily: 'Plus Jakarta Sans',
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
+                                  : const Text("S'inscrire"),
                             ),
                           ),
 
@@ -334,10 +331,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.kBgElevated,
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.kBorder),
               ),
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
@@ -412,9 +408,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 6),
-        Text(
+        const Text(
           'Rejoignez SeeMi et monétisez vos contenus.',
-          style: AppTextStyles.kBodyMedium.copyWith(
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
             color: AppColors.kTextSecondary,
           ),
           textAlign: TextAlign.center,
@@ -426,36 +425,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // ─── CGU ─────────────────────────────────────────────────────────────────
 
   Widget _buildTermsRow() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 28,
-          height: 28,
-          child: Checkbox(
-            value: _acceptedTerms,
-            onChanged: (v) =>
-                setState(() => _acceptedTerms = v ?? false),
-            activeColor: AppColors.kPrimary,
-            checkColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6)),
-            side: const BorderSide(color: AppColors.kBorder, width: 1.5),
+    return GestureDetector(
+      onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: _acceptedTerms ? AppColors.kPrimary : Colors.transparent,
+              border: Border.all(
+                color: _acceptedTerms ? AppColors.kPrimary : AppColors.kBorder,
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: _acceptedTerms
+                ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+                : null,
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: GestureDetector(
-            onTap: () =>
-                setState(() => _acceptedTerms = !_acceptedTerms),
+          const SizedBox(width: 10),
+          Expanded(
             child: RichText(
-              text: TextSpan(
-                style: AppTextStyles.kCaption.copyWith(
+              text: const TextSpan(
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 13,
                   color: AppColors.kTextSecondary,
                 ),
                 children: [
-                  const TextSpan(text: "J'accepte les "),
-                  const TextSpan(
+                  TextSpan(text: "J'accepte les "),
+                  TextSpan(
                     text: 'termes et conditions',
                     style: TextStyle(
                       color: AppColors.kPrimary,
@@ -463,13 +465,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       decoration: TextDecoration.underline,
                     ),
                   ),
-                  const TextSpan(text: " d'utilisation de SeeMi."),
+                  TextSpan(text: " d'utilisation de SeeMi."),
                 ],
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -479,9 +481,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
+        const Text(
           'Déjà un compte ?',
-          style: AppTextStyles.kBodyMedium.copyWith(
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 15,
             color: AppColors.kTextSecondary,
           ),
         ),
@@ -521,7 +525,7 @@ class _SectionLabel extends StatelessWidget {
         fontSize: 11,
         fontWeight: FontWeight.w800,
         letterSpacing: 1.5,
-        color: AppColors.kTextSecondary,
+        color: AppColors.kTextTertiary,
       ),
     );
   }
@@ -824,8 +828,11 @@ class _ErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: AppTextStyles.kCaption
-                  .copyWith(color: AppColors.kError),
+              style: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 13,
+                color: AppColors.kError,
+              ),
             ),
           ),
         ],
