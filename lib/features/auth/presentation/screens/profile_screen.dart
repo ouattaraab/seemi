@@ -30,13 +30,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return SafeArea(
       bottom: false,
       child: Consumer<ProfileProvider>(
-        builder: (context, provider, _) {
+        builder: (context, provider, child) {
           final user = provider.user;
           final fullName = [user?.firstName, user?.lastName]
               .where((s) => s != null && s.isNotEmpty)
               .join(' ');
           final displayName =
-              fullName.isNotEmpty ? fullName.toUpperCase() : 'UTILISATEUR';
+              fullName.isNotEmpty ? _toTitleCase(fullName) : 'Utilisateur';
 
           return RefreshIndicator(
             color: AppColors.kPrimary,
@@ -45,60 +45,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 children: [
-                  // ── Header ──────────────────────────────────────────────
-                  _buildHeader(context, provider, displayName),
+                  // ── Header ────────────────────────────────────────────
+                  _buildHeader(provider, displayName),
 
-                  // ── Body ───────────────────────────────────────────────
+                  // ── Body ──────────────────────────────────────────────
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 40, 24, 0),
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Account Settings
-                        const _SectionTitle(label: 'Paramètres du compte'),
-                        const SizedBox(height: 16),
+                        // ── Paramètres du compte ──────────────────────
+                        const _SectionLabel(label: 'PARAMÈTRES DU COMPTE'),
+                        const SizedBox(height: 12),
                         _MenuCard(items: [
                           _MenuItemData(
                             icon: Icons.lock_outline_rounded,
+                            iconColor: AppColors.kPrimary,
+                            iconBg: AppColors.kPrimary.withValues(alpha: 0.08),
                             label: 'Mot de passe & Sécurité',
                             onTap: () {},
                           ),
                           _MenuItemData(
                             icon: Icons.notifications_outlined,
+                            iconColor: AppColors.kAccentDark,
+                            iconBg: AppColors.kAccent.withValues(alpha: 0.10),
                             label: 'Notifications',
                             onTap: () {},
                           ),
                         ]),
 
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 32),
 
-                        // Support & Légal
-                        const _SectionTitle(label: 'Support & Légal'),
-                        const SizedBox(height: 16),
+                        // ── Support & Légal ───────────────────────────
+                        const _SectionLabel(label: 'SUPPORT & LÉGAL'),
+                        const SizedBox(height: 12),
                         _MenuCard(items: [
                           _MenuItemData(
                             icon: Icons.chat_bubble_outline_rounded,
+                            iconColor: AppColors.kSuccess,
+                            iconBg:
+                                AppColors.kSuccess.withValues(alpha: 0.08),
                             label: 'Contacter le support',
                             onTap: () {},
                           ),
                           _MenuItemData(
                             icon: Icons.description_outlined,
+                            iconColor: AppColors.kTextSecondary,
+                            iconBg: AppColors.kBgElevated,
                             label: 'Conditions générales',
                             onTap: () {},
                           ),
                           _MenuItemData(
                             icon: Icons.shield_outlined,
+                            iconColor: AppColors.kTextSecondary,
+                            iconBg: AppColors.kBgElevated,
                             label: 'Politique de confidentialité',
                             onTap: () {},
                           ),
                         ]),
 
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 32),
 
-                        // Logout
+                        // ── Déconnexion ───────────────────────────────
                         SizedBox(
                           width: double.infinity,
-                          height: 58,
+                          height: AppSpacing.kButtonHeight,
                           child: OutlinedButton.icon(
                             onPressed: () => _logout(context, provider),
                             icon: const Icon(Icons.logout_rounded, size: 20),
@@ -106,18 +117,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.kError,
                               backgroundColor:
-                                  AppColors.kError.withValues(alpha: 0.05),
+                                  AppColors.kError.withValues(alpha: 0.04),
                               side: BorderSide(
-                                color: AppColors.kError.withValues(alpha: 0.20),
+                                color: AppColors.kError.withValues(alpha: 0.22),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(
-                                    AppSpacing.kRadiusPill),
-                              ),
+                              shape: const StadiumBorder(),
                               textStyle: const TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
@@ -125,14 +133,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Version
+                        // ── Version ───────────────────────────────────
                         Center(
                           child: Text(
-                            'SEEMI APP VERSION 1.0.4',
+                            'SEEMI APP · VERSION 1.0.4',
                             style: AppTextStyles.kCaption.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 3,
-                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 2.5,
+                              fontSize: 10,
+                              color: AppColors.kTextTertiary,
                             ),
                           ),
                         ),
@@ -149,38 +158,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ─── Header ───────────────────────────────────────────────────────────────
+  // ─── Header ────────────────────────────────────────────────────────────────
 
-  Widget _buildHeader(
-    BuildContext context,
-    ProfileProvider provider,
-    String displayName,
-  ) {
+  Widget _buildHeader(ProfileProvider provider, String displayName) {
     final user = provider.user;
+    final contact = user?.email?.isNotEmpty == true
+        ? user!.email!
+        : (user?.phone.isNotEmpty == true
+            ? user!.phone
+            : 'Contact non renseigné');
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 48, 24, 40),
+      padding: const EdgeInsets.fromLTRB(24, 40, 24, 36),
       decoration: BoxDecoration(
-        color: AppColors.kPrimary.withValues(alpha: 0.05),
+        color: AppColors.kBgSurface,
         borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(48),
+          bottom: Radius.circular(40),
         ),
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.kPrimary.withValues(alpha: 0.10),
+        border: const Border(
+          bottom: BorderSide(color: AppColors.kBorder),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.kTextPrimary.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-        ),
+        ],
       ),
       child: Column(
         children: [
-          // Avatar with dashed border + edit button
+          // ── Avatar ──────────────────────────────────────────────────
           Stack(
             clipBehavior: Clip.none,
             children: [
-              // Dashed amber ring
+              // Anneau en tirets amber
               SizedBox(
-                width: 112,
-                height: 112,
+                width: 108,
+                height: 108,
                 child: CustomPaint(
                   painter: const _DashedCirclePainter(
                     color: AppColors.kAccent,
@@ -201,7 +217,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              // Edit button
+              // Bouton éditer
               Positioned(
                 bottom: 0,
                 right: 0,
@@ -211,7 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.kAccent,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.kBgBase, width: 3),
+                    border: Border.all(color: AppColors.kBgSurface, width: 3),
                   ),
                   child: const Icon(
                     Icons.edit_rounded,
@@ -224,34 +240,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Name
+          // ── Nom ─────────────────────────────────────────────────────
           Text(
             displayName,
             style: const TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontSize: 22,
               fontWeight: FontWeight.w900,
+              color: AppColors.kTextPrimary,
               letterSpacing: -0.5,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
 
-          // Email ou téléphone
-          Text(
-            user?.email?.isNotEmpty == true
-                ? user!.email!
-                : (user?.phone.isNotEmpty == true
-                    ? user!.phone
-                    : 'Contact non renseigné'),
-            style: AppTextStyles.kBodyMedium.copyWith(
-              color: AppColors.kTextSecondary,
-              fontWeight: FontWeight.w500,
-            ),
+          // ── Contact ─────────────────────────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                contact.contains('@')
+                    ? Icons.alternate_email_rounded
+                    : Icons.phone_outlined,
+                size: 13,
+                color: AppColors.kTextSecondary,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                contact,
+                style: AppTextStyles.kBodyMedium.copyWith(
+                  color: AppColors.kTextSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // KYC / Pro badge
+          // ── Badge KYC ───────────────────────────────────────────────
           _buildKycBadge(user?.kycStatus ?? 'none'),
         ],
       ),
@@ -263,10 +290,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       color: AppColors.kPrimary,
       alignment: Alignment.center,
       child: Text(
-        name.isNotEmpty ? name[0] : 'U',
+        name.isNotEmpty ? name[0].toUpperCase() : 'U',
         style: const TextStyle(
           color: Colors.white,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w900,
           fontSize: 36,
         ),
       ),
@@ -274,23 +301,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildKycBadge(String kycStatus) {
-    final (color, label) = switch (kycStatus) {
-      'approved' => (AppColors.kAccent, 'Pro Créateur'),
-      'pending'  => (AppColors.kWarning, 'KYC en attente'),
-      'rejected' => (AppColors.kError, 'KYC rejeté'),
-      _          => (AppColors.kTextSecondary, 'KYC non soumis'),
+    final (color, label, icon) = switch (kycStatus) {
+      'approved' => (AppColors.kAccent, 'Pro Créateur', Icons.verified_rounded),
+      'pending'  => (AppColors.kWarning, 'KYC en attente', Icons.schedule_rounded),
+      'rejected' => (AppColors.kError, 'KYC rejeté', Icons.cancel_rounded),
+      _          => (AppColors.kTextSecondary, 'KYC non soumis', Icons.info_outline_rounded),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
         border: Border.all(color: color.withValues(alpha: 0.20)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.star_rounded, color: color, size: 13),
+          Icon(icon, color: color, size: 13),
           const SizedBox(width: 5),
           Text(
             label.toUpperCase(),
@@ -299,7 +326,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: color,
               fontSize: 11,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
+              letterSpacing: 1.0,
             ),
           ),
         ],
@@ -311,28 +338,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await provider.logout();
     if (context.mounted) context.go(RouteNames.kRouteLogin);
   }
+
+  static String _toTitleCase(String s) {
+    return s
+        .split(' ')
+        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+  }
 }
 
-// ─── _SectionTitle ────────────────────────────────────────────────────────────
+// ─── _SectionLabel ────────────────────────────────────────────────────────────
 
-class _SectionTitle extends StatelessWidget {
+class _SectionLabel extends StatelessWidget {
   final String label;
-  const _SectionTitle({required this.label});
+  const _SectionLabel({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontFamily: 'Plus Jakarta Sans',
-          fontSize: 17,
-          fontWeight: FontWeight.w700,
-        ),
+    return Text(
+      label,
+      style: const TextStyle(
+        fontFamily: 'Plus Jakarta Sans',
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        color: AppColors.kTextTertiary,
+        letterSpacing: 1.5,
       ),
     );
   }
+}
+
+// ─── _MenuItemData ────────────────────────────────────────────────────────────
+
+class _MenuItemData {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String label;
+  final VoidCallback onTap;
+
+  const _MenuItemData({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.label,
+    required this.onTap,
+  });
 }
 
 // ─── _MenuCard ────────────────────────────────────────────────────────────────
@@ -343,21 +394,28 @@ class _MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(40),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.kBgSurface,
-          borderRadius: BorderRadius.circular(40),
-          border: Border.all(color: AppColors.kBorder),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.kBgSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+        border: Border.all(color: AppColors.kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.kTextPrimary.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
         child: Column(
           children: [
             for (var i = 0; i < items.length; i++) ...[
               if (i > 0)
                 Divider(
                   height: 1,
-                  color: AppColors.kBorder.withValues(alpha: 0.5),
+                  color: AppColors.kBorder.withValues(alpha: 0.6),
                   indent: 0,
                   endIndent: 0,
                 ),
@@ -370,20 +428,6 @@ class _MenuCard extends StatelessWidget {
   }
 }
 
-// ─── _MenuItemData ────────────────────────────────────────────────────────────
-
-class _MenuItemData {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _MenuItemData({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-}
-
 // ─── _MenuRow ─────────────────────────────────────────────────────────────────
 
 class _MenuRow extends StatelessWidget {
@@ -392,35 +436,38 @@ class _MenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: item.onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.kBgElevated,
-                borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: item.onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: item.iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(item.icon, color: item.iconColor, size: 20),
               ),
-              child: Icon(item.icon, color: AppColors.kPrimary, size: 20),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                item.label,
-                style: AppTextStyles.kBodyLarge
-                    .copyWith(fontWeight: FontWeight.w700),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: AppTextStyles.kBodyMedium
+                      .copyWith(fontWeight: FontWeight.w600),
+                ),
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 16,
-              color: AppColors.kTextTertiary,
-            ),
-          ],
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppColors.kTextTertiary,
+              ),
+            ],
+          ),
         ),
       ),
     );
