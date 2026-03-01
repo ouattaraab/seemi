@@ -4,6 +4,7 @@ import 'package:ppv_app/features/auth/domain/user.dart';
 class UserModel extends User {
   const UserModel({
     required super.id,
+    super.email,
     required super.phone,
     super.firstName,
     super.lastName,
@@ -20,7 +21,8 @@ class UserModel extends User {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] as int,
-      phone: json['phone'] as String,
+      email: json['email'] as String?,
+      phone: json['phone'] as String? ?? '',
       firstName: json['first_name'] as String?,
       lastName: json['last_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,

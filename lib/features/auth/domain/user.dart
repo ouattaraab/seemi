@@ -1,6 +1,7 @@
 /// Entité utilisateur pure — aucune dépendance framework.
 class User {
   final int id;
+  final String? email;
   final String phone;
   final String? firstName;
   final String? lastName;
@@ -15,6 +16,7 @@ class User {
 
   const User({
     required this.id,
+    this.email,
     required this.phone,
     this.firstName,
     this.lastName,
