@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
@@ -54,7 +53,7 @@ class _UploadScreenState extends State<UploadScreen> {
     super.dispose();
   }
 
-  // ─── Sélection photo ─────────────────────────────────────────────────────
+  // ─── Sélection photo ──────────────────────────────────────────────────────
 
   Future<void> _onPhotoTypeTapped() async {
     setState(() => _contentType = 'photo');
@@ -144,7 +143,7 @@ class _UploadScreenState extends State<UploadScreen> {
     return true;
   }
 
-  // ─── Upload ──────────────────────────────────────────────────────────────
+  // ─── Upload ───────────────────────────────────────────────────────────────
 
   Future<void> _startUpload() async {
     if (_selectedFile == null) return;
@@ -173,7 +172,7 @@ class _UploadScreenState extends State<UploadScreen> {
     await _startUpload();
   }
 
-  // ─── Publication ─────────────────────────────────────────────────────────
+  // ─── Publication ──────────────────────────────────────────────────────────
 
   bool get _canPublish =>
       _selectedPriceFcfa != null &&
@@ -201,7 +200,7 @@ class _UploadScreenState extends State<UploadScreen> {
     }
   }
 
-  // ─── Partage ─────────────────────────────────────────────────────────────
+  // ─── Partage ──────────────────────────────────────────────────────────────
 
   Future<void> _copyLink() async {
     if (_shareUrl == null) return;
@@ -225,11 +224,9 @@ class _UploadScreenState extends State<UploadScreen> {
     if (!mounted) return;
     if (!granted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
+        const SnackBar(
+          content: Text(
               'Permission contacts refusée. Activez-la dans les paramètres.'),
-          action:
-              SnackBarAction(label: 'Paramètres', onPressed: openAppSettings),
         ),
       );
       return;
@@ -245,7 +242,7 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 
-  // ─── Reset ───────────────────────────────────────────────────────────────
+  // ─── Reset ────────────────────────────────────────────────────────────────
 
   void _reset() {
     context.read<ContentProvider>().resetUploadState();
@@ -270,7 +267,7 @@ class _UploadScreenState extends State<UploadScreen> {
     ));
   }
 
-  // ─── Build ───────────────────────────────────────────────────────────────
+  // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -282,7 +279,7 @@ class _UploadScreenState extends State<UploadScreen> {
             _buildAppBar(),
             Expanded(
               child: Consumer<ContentProvider>(
-                builder: (context, provider, _) => SingleChildScrollView(
+                builder: (context, provider, child) => SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.kScreenMargin,
                     vertical: AppSpacing.kSpaceMd,
@@ -296,6 +293,8 @@ class _UploadScreenState extends State<UploadScreen> {
       ),
     );
   }
+
+  // ── AppBar ────────────────────────────────────────────────────────────────
 
   Widget _buildAppBar() {
     final String title;
@@ -324,10 +323,9 @@ class _UploadScreenState extends State<UploadScreen> {
             child: Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.kBgElevated,
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.kBorder),
               ),
               child: const Icon(
                 Icons.arrow_back_ios_new_rounded,
@@ -336,12 +334,9 @@ class _UploadScreenState extends State<UploadScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              title,
-              style: AppTextStyles.kTitleLarge,
-            ),
+            child: Text(title, style: AppTextStyles.kTitleLarge),
           ),
           if (_selectedFile != null && _shareUrl == null)
             GestureDetector(
@@ -352,8 +347,6 @@ class _UploadScreenState extends State<UploadScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.kError.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
-                  border: Border.all(
-                      color: AppColors.kError.withValues(alpha: 0.20)),
                 ),
                 child: const Icon(
                   Icons.close_rounded,
@@ -367,8 +360,9 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 
+  // ── Contenu principal ─────────────────────────────────────────────────────
+
   Widget _buildContent(ContentProvider provider) {
-    // Phase 1 : sélection du type
     if (_contentType == null && _selectedFile == null) {
       return _buildTypeSelection();
     }
@@ -376,12 +370,9 @@ class _UploadScreenState extends State<UploadScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section média
         _buildMediaSection(provider),
-
         const SizedBox(height: AppSpacing.kSpaceLg),
 
-        // Section pricing (après upload)
         AnimatedSize(
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
@@ -390,7 +381,6 @@ class _UploadScreenState extends State<UploadScreen> {
               : const SizedBox.shrink(),
         ),
 
-        // Section partage (après publication)
         AnimatedSize(
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
@@ -400,16 +390,13 @@ class _UploadScreenState extends State<UploadScreen> {
         ),
 
         const SizedBox(height: AppSpacing.kSpaceMd),
-
-        // Bouton d'action principal
         _buildActionButton(provider),
-
         const SizedBox(height: AppSpacing.kSpaceLg),
       ],
     );
   }
 
-  // ─── Phase 1 : sélection du type ─────────────────────────────────────────
+  // ── Phase 1 : sélection du type ───────────────────────────────────────────
 
   Widget _buildTypeSelection() {
     return Column(
@@ -456,7 +443,7 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 
-  // ─── Section média ────────────────────────────────────────────────────────
+  // ── Section média ─────────────────────────────────────────────────────────
 
   Widget _buildMediaSection(ContentProvider provider) {
     final bool hasFile = _selectedFile != null;
@@ -474,7 +461,7 @@ class _UploadScreenState extends State<UploadScreen> {
             aspectRatio: 1,
             child: CustomPaint(
               painter: _DashedBorderPainter(
-                color: AppColors.kAccent.withValues(alpha: 0.35),
+                color: AppColors.kAccent.withValues(alpha: 0.40),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(40),
@@ -519,7 +506,8 @@ class _UploadScreenState extends State<UploadScreen> {
 
                     // Overlay chargement
                     if (provider.isLoading) ...[
-                      Container(color: Colors.black.withValues(alpha: 0.55)),
+                      Container(
+                          color: Colors.black.withValues(alpha: 0.55)),
                       Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -558,20 +546,23 @@ class _UploadScreenState extends State<UploadScreen> {
                     ],
 
                     // Overlay "Changer le média"
-                    if (hasFile && !provider.isLoading && _contentType == 'photo')
+                    if (hasFile &&
+                        !provider.isLoading &&
+                        _contentType == 'photo')
                       Positioned(
                         bottom: 0,
                         left: 0,
                         right: 0,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
                                 Colors.transparent,
-                                Colors.black.withValues(alpha: 0.5),
+                                Colors.black.withValues(alpha: 0.50),
                               ],
                             ),
                           ),
@@ -625,7 +616,7 @@ class _UploadScreenState extends State<UploadScreen> {
                         ),
                       ),
 
-                    // Badge type (en cours de chargement)
+                    // Badge type
                     if (hasFile &&
                         _uploadedContentId == null &&
                         !provider.isLoading)
@@ -676,9 +667,9 @@ class _UploadScreenState extends State<UploadScreen> {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: provider.uploadProgress,
-              color: AppColors.kPrimary,
-              backgroundColor: AppColors.kOutline,
-              minHeight: 5,
+              color: AppColors.kAccent,
+              backgroundColor: AppColors.kBorder,
+              minHeight: 4,
             ),
           ),
         ],
@@ -686,7 +677,7 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 
-  // ─── Section pricing ──────────────────────────────────────────────────────
+  // ── Section pricing ───────────────────────────────────────────────────────
 
   Widget _buildPricingSection(ContentProvider provider) {
     final int? earnings = _selectedPriceFcfa != null
@@ -707,10 +698,17 @@ class _UploadScreenState extends State<UploadScreen> {
             borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
             border: Border.all(
               color: _selectedPriceFcfa != null
-                  ? AppColors.kPrimary.withValues(alpha: 0.5)
+                  ? AppColors.kPrimary.withValues(alpha: 0.50)
                   : AppColors.kBorder,
-              width: _selectedPriceFcfa != null ? 1.5 : 1,
+              width: _selectedPriceFcfa != null ? 1.5 : 1.0,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.kTextPrimary.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -725,6 +723,11 @@ class _UploadScreenState extends State<UploadScreen> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
+              ),
+              Container(
+                width: 1,
+                height: 28,
+                color: AppColors.kBorder,
               ),
               Expanded(
                 child: TextFormField(
@@ -746,7 +749,7 @@ class _UploadScreenState extends State<UploadScreen> {
                       fontWeight: FontWeight.w900,
                     ),
                     contentPadding:
-                        EdgeInsets.symmetric(vertical: 16),
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   ),
                   onChanged: (value) {
                     final parsed = int.tryParse(value);
@@ -757,27 +760,84 @@ class _UploadScreenState extends State<UploadScreen> {
                   },
                 ),
               ),
-              const SizedBox(width: 20),
             ],
           ),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
 
-        // Aide : montant minimum + estimation revenus
+        // Chips prix rapides
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [500, 1000, 2000, 5000].map((price) {
+              final selected = _selectedPriceFcfa == price;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedPriceFcfa = price;
+                      _priceCtrl.text = price.toString();
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColors.kPrimary
+                          : AppColors.kBgSurface,
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.kRadiusPill),
+                      border: Border.all(
+                        color: selected
+                            ? AppColors.kPrimary
+                            : AppColors.kBorder,
+                      ),
+                    ),
+                    child: Text(
+                      '$price FCFA',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: selected
+                            ? Colors.white
+                            : AppColors.kTextSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // Aide revenus
         if (earnings != null)
-          Text(
-            'Vous recevrez environ $earnings FCFA (80%)',
-            style: AppTextStyles.kCaption.copyWith(
-              color: AppColors.kSuccess,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            children: [
+              const Icon(Icons.trending_up_rounded,
+                  size: 14, color: AppColors.kSuccess),
+              const SizedBox(width: 5),
+              Text(
+                'Vous recevrez environ $earnings FCFA (80%)',
+                style: AppTextStyles.kCaption.copyWith(
+                  color: AppColors.kSuccess,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           )
         else
           Text(
             'Minimum 100 FCFA · Vous recevez 80% du prix',
-            style: AppTextStyles.kCaption
-                .copyWith(color: AppColors.kTextSecondary),
+            style:
+                AppTextStyles.kCaption.copyWith(color: AppColors.kTextSecondary),
           ),
 
         const SizedBox(height: 20),
@@ -785,29 +845,29 @@ class _UploadScreenState extends State<UploadScreen> {
         // Erreur publication
         if (_publishError != null) ...[
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.kError.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.kError.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
               border: Border.all(
-                  color: AppColors.kError.withValues(alpha: 0.25)),
+                  color: AppColors.kError.withValues(alpha: 0.22)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline,
+                const Icon(Icons.error_outline_rounded,
                     color: AppColors.kError, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _publishError!,
-                    style: const TextStyle(
-                        color: AppColors.kError, fontSize: 14),
+                    style: AppTextStyles.kCaption
+                        .copyWith(color: AppColors.kError),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
         ],
 
         // CGU checkbox
@@ -835,14 +895,14 @@ class _UploadScreenState extends State<UploadScreen> {
                 onTap: () =>
                     setState(() => _tosAccepted = !_tosAccepted),
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.only(top: 4),
                   child: RichText(
                     text: TextSpan(
                       style: AppTextStyles.kBodyMedium
                           .copyWith(color: AppColors.kTextSecondary),
-                      children: [
-                        const TextSpan(text: "J'accepte les "),
-                        const TextSpan(
+                      children: const [
+                        TextSpan(text: "J'accepte les "),
+                        TextSpan(
                           text: 'conditions d\'utilisation',
                           style: TextStyle(
                             color: AppColors.kPrimary,
@@ -850,8 +910,8 @@ class _UploadScreenState extends State<UploadScreen> {
                             decoration: TextDecoration.underline,
                           ),
                         ),
-                        const TextSpan(text: ' et la '),
-                        const TextSpan(
+                        TextSpan(text: ' et la '),
+                        TextSpan(
                           text: 'politique de confidentialité',
                           style: TextStyle(
                             color: AppColors.kPrimary,
@@ -859,7 +919,7 @@ class _UploadScreenState extends State<UploadScreen> {
                             decoration: TextDecoration.underline,
                           ),
                         ),
-                        const TextSpan(text: ' de SeeMi.'),
+                        TextSpan(text: ' de SeeMi.'),
                       ],
                     ),
                   ),
@@ -874,7 +934,7 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 
-  // ─── Section partage ──────────────────────────────────────────────────────
+  // ── Section partage ───────────────────────────────────────────────────────
 
   Widget _buildSharingSection() {
     if (_shareUrl == null) return const SizedBox.shrink();
@@ -885,7 +945,7 @@ class _UploadScreenState extends State<UploadScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.kSuccess.withValues(alpha: 0.08),
+            color: AppColors.kSuccess.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
             border: Border.all(
                 color: AppColors.kSuccess.withValues(alpha: 0.20)),
@@ -896,8 +956,8 @@ class _UploadScreenState extends State<UploadScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.kSuccess.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
+                  color: AppColors.kSuccess.withValues(alpha: 0.14),
                 ),
                 child: const Icon(Icons.check_circle_rounded,
                     color: AppColors.kSuccess, size: 22),
@@ -913,12 +973,13 @@ class _UploadScreenState extends State<UploadScreen> {
                         fontFamily: 'Plus Jakarta Sans',
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
+                        color: AppColors.kTextPrimary,
                       ),
                     ),
                     Text(
                       '$_selectedPriceFcfa FCFA pour déverrouiller',
-                      style: AppTextStyles.kCaption.copyWith(
-                          color: AppColors.kTextSecondary),
+                      style: AppTextStyles.kCaption
+                          .copyWith(color: AppColors.kTextSecondary),
                     ),
                   ],
                 ),
@@ -933,13 +994,12 @@ class _UploadScreenState extends State<UploadScreen> {
         GestureDetector(
           onTap: _copyLink,
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: AppColors.kPrimary.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
               border: Border.all(
-                  color: AppColors.kPrimary.withValues(alpha: 0.20)),
+                  color: AppColors.kPrimary.withValues(alpha: 0.18)),
             ),
             child: Row(
               children: [
@@ -950,6 +1010,7 @@ class _UploadScreenState extends State<UploadScreen> {
                   child: Text(
                     _shareUrl!,
                     style: const TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
                       color: AppColors.kPrimary,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -967,7 +1028,7 @@ class _UploadScreenState extends State<UploadScreen> {
 
         const SizedBox(height: 20),
 
-        // Ou partager directement
+        // Divider "Ou partager directement"
         Row(
           children: [
             const Expanded(child: Divider(color: AppColors.kBorder)),
@@ -976,16 +1037,16 @@ class _UploadScreenState extends State<UploadScreen> {
               child: Text(
                 'Ou partager directement',
                 style: AppTextStyles.kCaption
-                    .copyWith(color: AppColors.kTextSecondary),
+                    .copyWith(color: AppColors.kTextTertiary),
               ),
             ),
             const Expanded(child: Divider(color: AppColors.kBorder)),
           ],
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
-        // Boutons sociaux
+        // Cercles sociaux
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -1017,8 +1078,8 @@ class _UploadScreenState extends State<UploadScreen> {
               label: 'Copier',
               color: AppColors.kBgElevated,
               icon: Icons.copy_rounded,
-              iconColor: AppColors.kTextPrimary,
-              labelColor: AppColors.kTextSecondary,
+              iconColor: AppColors.kTextSecondary,
+              labelColor: AppColors.kTextTertiary,
               onTap: _copyLink,
             ),
           ],
@@ -1029,7 +1090,7 @@ class _UploadScreenState extends State<UploadScreen> {
     );
   }
 
-  // ─── Bouton d'action principal ────────────────────────────────────────────
+  // ── Bouton d'action principal ─────────────────────────────────────────────
 
   Widget _buildActionButton(ContentProvider provider) {
     // Terminer (après publication)
@@ -1061,8 +1122,8 @@ class _UploadScreenState extends State<UploadScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: const LinearProgressIndicator(
-                  color: AppColors.kPrimary,
-                  backgroundColor: AppColors.kOutline,
+                  color: AppColors.kAccent,
+                  backgroundColor: AppColors.kBorder,
                   minHeight: 4,
                 ),
               ),
@@ -1094,7 +1155,7 @@ class _UploadScreenState extends State<UploadScreen> {
                     AppColors.kPrimary.withValues(alpha: 0.35),
                 disabledForegroundColor: Colors.white54,
                 shadowColor: AppColors.kPrimary.withValues(alpha: 0.35),
-                elevation: _canPublish ? 8 : 0,
+                elevation: _canPublish ? 6 : 0,
               ),
             ),
           ),
@@ -1104,7 +1165,8 @@ class _UploadScreenState extends State<UploadScreen> {
               _selectedPriceFcfa == null
                   ? 'Saisissez un prix (min. 100 FCFA)'
                   : 'Acceptez les CGU pour continuer',
-              style: AppTextStyles.kCaption,
+              style: AppTextStyles.kCaption
+                  .copyWith(color: AppColors.kTextTertiary),
               textAlign: TextAlign.center,
             ),
           ],
@@ -1150,7 +1212,7 @@ class _SectionLabel extends StatelessWidget {
         fontSize: 11,
         fontWeight: FontWeight.w800,
         letterSpacing: 1.5,
-        color: AppColors.kTextSecondary,
+        color: AppColors.kTextTertiary,
       ),
     );
   }
@@ -1175,46 +1237,58 @@ class _TypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 36),
-        decoration: BoxDecoration(
-          color: AppColors.kBgSurface,
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
-          border: Border.all(
-              color: color.withValues(alpha: 0.20), width: 1.5),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.10),
-                shape: BoxShape.circle,
+    return Material(
+      color: AppColors.kBgSurface,
+      borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 36),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+            border: Border.all(
+                color: color.withValues(alpha: 0.22), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              child: Icon(icon, size: 44, color: color),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.kTextPrimary,
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 44, color: color),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: AppColors.kTextTertiary,
-                fontSize: 13,
+              const SizedBox(height: 16),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.kTextPrimary,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  color: AppColors.kTextTertiary,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1246,25 +1320,29 @@ class _SocialCircle extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
+          ClipOval(
+            child: Material(
               color: color,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: iconColor ?? Colors.white,
-              size: 26,
+              child: InkWell(
+                onTap: onTap,
+                child: SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Icon(
+                    icon,
+                    color: iconColor ?? Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 7),
           Text(
             label,
             style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: labelColor ?? AppColors.kTextSecondary,
             ),
@@ -1393,8 +1471,10 @@ class _SourcePickerSheet extends StatelessWidget {
                 child: const Text(
                   'Annuler',
                   style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
                     color: AppColors.kTextSecondary,
                     fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -1419,29 +1499,34 @@ class _SourceOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 28),
-        decoration: BoxDecoration(
-          color: AppColors.kBgElevated,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.kBorder),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 40, color: AppColors.kPrimary),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                color: AppColors.kTextPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Material(
+        color: AppColors.kBgElevated,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.kBorder),
             ),
-          ],
+            child: Column(
+              children: [
+                Icon(icon, size: 40, color: AppColors.kPrimary),
+                const SizedBox(height: 10),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    color: AppColors.kTextPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
