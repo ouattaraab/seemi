@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
-import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/auth/presentation/auth_provider.dart';
 
 /// Écran de connexion — email ou téléphone + mot de passe.
@@ -49,15 +48,13 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (!mounted) return;
-    if (success) {
-      context.go(RouteNames.kRouteHome);
-    }
+    if (success) context.go(RouteNames.kRouteHome);
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
-      builder: (context, authProvider, _) {
+      builder: (context, authProvider, child) {
         return Scaffold(
           backgroundColor: AppColors.kBgBase,
           body: SafeArea(
@@ -74,20 +71,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     _buildHero(),
                     const SizedBox(height: AppSpacing.kSpace2xl),
 
-                    // ── Champ identifiant ─────────────────────────────────
+                    // ── Identifiant ───────────────────────────────────────
                     _PillField(
                       controller: _identifierCtrl,
                       keyboardType: TextInputType.emailAddress,
                       hintText: 'Email ou numéro de téléphone',
                       prefixIcon: Icons.person_outline_rounded,
                       onChanged: (_) => authProvider.clearError(),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Veuillez entrer votre email ou téléphone'
-                          : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty)
+                              ? 'Veuillez entrer votre email ou téléphone'
+                              : null,
                     ),
                     const SizedBox(height: AppSpacing.kSpaceMd),
 
-                    // ── Champ mot de passe ────────────────────────────────
+                    // ── Mot de passe ──────────────────────────────────────
                     _PillField(
                       controller: _passwordCtrl,
                       hintText: 'Mot de passe',
@@ -105,9 +103,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             () => _obscurePassword = !_obscurePassword),
                       ),
                       onChanged: (_) => authProvider.clearError(),
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'Veuillez entrer votre mot de passe'
-                          : null,
+                      validator: (v) =>
+                          (v == null || v.isEmpty)
+                              ? 'Veuillez entrer votre mot de passe'
+                              : null,
                     ),
 
                     // ── Mot de passe oublié ───────────────────────────────
@@ -118,12 +117,16 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 4, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: Text(
+                        child: const Text(
                           'Mot de passe oublié ?',
-                          style: AppTextStyles.kCaption.copyWith(
-                            color: AppColors.kPrimary,
+                          style: TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
+                            color: AppColors.kPrimary,
                           ),
                         ),
                       ),
@@ -138,18 +141,30 @@ class _LoginScreenState extends State<LoginScreen> {
                       _ErrorBanner(message: authProvider.error!),
                     ],
 
+                    // ── Suggestion créer un compte ────────────────────────
+                    if (authProvider.accountNotFound) ...[
+                      const SizedBox(height: 8),
+                      _buildRegisterNudge(),
+                    ],
+
                     const SizedBox(height: AppSpacing.kSpaceLg),
 
                     // ── Bouton connexion ──────────────────────────────────
                     SizedBox(
                       height: AppSpacing.kButtonHeight,
                       child: FilledButton(
-                        onPressed: authProvider.isLoading ? null : _onLogin,
+                        onPressed:
+                            authProvider.isLoading ? null : _onLogin,
                         style: FilledButton.styleFrom(
                           shape: const StadiumBorder(),
                           elevation: 6,
                           shadowColor:
                               AppColors.kPrimary.withValues(alpha: 0.30),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                         child: authProvider.isLoading
                             ? const SizedBox(
@@ -160,20 +175,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text(
-                                'Se connecter',
-                                style: TextStyle(
-                                  fontFamily: 'Plus Jakarta Sans',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
+                            : const Text('Se connecter'),
                       ),
                     ),
 
                     const SizedBox(height: AppSpacing.kSpaceLg),
 
-                    // ── Inscription ───────────────────────────────────────
+                    // ── Lien inscription ──────────────────────────────────
                     _buildRegisterLink(),
 
                     const SizedBox(height: AppSpacing.kSpace2xl),
@@ -187,14 +195,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ─── Hero ────────────────────────────────────────────────────────────────
+  // ─── Hero ─────────────────────────────────────────────────────────────────
 
   Widget _buildHero() {
     return Column(
       children: [
         const SizedBox(height: AppSpacing.kSpaceXl),
 
-        // Logo avec halo décoratif
+        // Logo avec halos décoratifs
         Center(
           child: SizedBox(
             width: 120,
@@ -202,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Orbe amber (outer glow)
+                // Orbe amber (outer)
                 Container(
                   width: 120,
                   height: 120,
@@ -211,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppColors.kAccent.withValues(alpha: 0.10),
                   ),
                 ),
-                // Orbe primary (inner glow)
+                // Orbe indigo (inner)
                 Container(
                   width: 86,
                   height: 86,
@@ -220,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppColors.kPrimary.withValues(alpha: 0.08),
                   ),
                 ),
-                // Logo
+                // Image logo
                 ClipOval(
                   child: SizedBox(
                     width: 68,
@@ -228,7 +236,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Image.asset(
                       'assets/images/logo_seemi.png',
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
+                      errorBuilder: (context, error, stackTrace) =>
+                          Container(
                         color: AppColors.kPrimary,
                         child: const Icon(
                           Icons.visibility_rounded,
@@ -246,24 +255,36 @@ class _LoginScreenState extends State<LoginScreen> {
 
         const SizedBox(height: 20),
 
-        // Marque
-        const Text(
-          'SeeMi',
-          style: TextStyle(
-            fontFamily: 'Plus Jakarta Sans',
-            fontSize: 32,
-            fontWeight: FontWeight.w900,
-            color: AppColors.kTextPrimary,
-            letterSpacing: -0.5,
+        // Wordmark "SeeMi" bicolore
+        const Text.rich(
+          TextSpan(
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+            children: [
+              TextSpan(
+                text: 'See',
+                style: TextStyle(color: AppColors.kTextPrimary),
+              ),
+              TextSpan(
+                text: 'Mi',
+                style: TextStyle(color: AppColors.kAccent),
+              ),
+            ],
           ),
           textAlign: TextAlign.center,
         ),
 
         const SizedBox(height: 8),
 
-        Text(
+        const Text(
           'Connectez-vous à votre compte.',
-          style: AppTextStyles.kBodyMedium.copyWith(
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 15,
             color: AppColors.kTextSecondary,
           ),
           textAlign: TextAlign.center,
@@ -272,65 +293,128 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ─── CGU ─────────────────────────────────────────────────────────────────
+  // ─── Ligne CGU ────────────────────────────────────────────────────────────
 
   Widget _buildTermsRow() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          width: 28,
-          height: 28,
-          child: Checkbox(
-            value: _acceptedTerms,
-            onChanged: (v) =>
-                setState(() => _acceptedTerms = v ?? false),
-            activeColor: AppColors.kPrimary,
-            checkColor: Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(6)),
-            side: const BorderSide(color: AppColors.kBorder, width: 1.5),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: GestureDetector(
-            onTap: () =>
-                setState(() => _acceptedTerms = !_acceptedTerms),
-            child: RichText(
-              text: TextSpan(
-                style: AppTextStyles.kCaption.copyWith(
-                  color: AppColors.kTextSecondary,
+    return GestureDetector(
+      onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.only(top: 1),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: _acceptedTerms
+                    ? AppColors.kPrimary
+                    : Colors.transparent,
+                border: Border.all(
+                  color: _acceptedTerms
+                      ? AppColors.kPrimary
+                      : AppColors.kBorder,
+                  width: 2,
                 ),
-                children: [
-                  const TextSpan(text: "J'accepte les "),
-                  const TextSpan(
-                    text: 'termes et conditions',
-                    style: TextStyle(
-                      color: AppColors.kPrimary,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.underline,
-                    ),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: _acceptedTerms
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text.rich(
+                TextSpan(
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 13,
+                    color: AppColors.kTextSecondary,
+                    height: 1.55,
                   ),
-                  const TextSpan(text: " d'utilisation de SeeMi."),
-                ],
+                  children: [
+                    TextSpan(text: "J'accepte les "),
+                    TextSpan(
+                      text: 'termes et conditions',
+                      style: TextStyle(
+                        color: AppColors.kPrimary,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                        decorationColor: AppColors.kPrimary,
+                      ),
+                    ),
+                    TextSpan(text: " d'utilisation de SeeMi."),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  // ─── Lien inscription ────────────────────────────────────────────────────
+  // ─── Nudge "créer un compte" (accountNotFound) ────────────────────────────
+
+  Widget _buildRegisterNudge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.kPrimary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+        border: Border.all(
+            color: AppColors.kPrimary.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              color: AppColors.kPrimary, size: 16),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Aucun compte avec cet identifiant.',
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 13,
+                color: AppColors.kPrimary,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => context.go(RouteNames.kRouteRegister),
+            child: const Text(
+              "S'inscrire →",
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.kPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Lien inscription ─────────────────────────────────────────────────────
 
   Widget _buildRegisterLink() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
+        const Text(
           'Pas encore de compte ?',
-          style: AppTextStyles.kBodyMedium.copyWith(
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 15,
             color: AppColors.kTextSecondary,
           ),
         ),
@@ -339,6 +423,7 @@ class _LoginScreenState extends State<LoginScreen> {
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            minimumSize: Size.zero,
           ),
           child: const Text(
             "S'inscrire",
@@ -403,31 +488,36 @@ class _PillField extends StatelessWidget {
         fillColor: AppColors.kBgSurface,
         prefixIcon: Padding(
           padding: const EdgeInsets.only(left: 16, right: 10),
-          child: Icon(prefixIcon,
-              color: AppColors.kTextSecondary, size: 20),
+          child:
+              Icon(prefixIcon, color: AppColors.kTextSecondary, size: 20),
         ),
         prefixIconConstraints: const BoxConstraints(minWidth: 48),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
           borderSide: const BorderSide(color: AppColors.kBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
           borderSide: const BorderSide(color: AppColors.kBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
           borderSide:
               const BorderSide(color: AppColors.kPrimary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
           borderSide:
               const BorderSide(color: AppColors.kError, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+          borderRadius:
+              BorderRadius.circular(AppSpacing.kRadiusPill),
           borderSide:
               const BorderSide(color: AppColors.kError, width: 1.5),
         ),
@@ -451,18 +541,22 @@ class _ErrorBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.kError.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
-        border: Border.all(color: AppColors.kError.withValues(alpha: 0.25)),
+        border: Border.all(
+            color: AppColors.kError.withValues(alpha: 0.22)),
       ),
       child: Row(
         children: [
           const Icon(Icons.error_outline_rounded,
-              color: AppColors.kError, size: 18),
+              color: AppColors.kError, size: 17),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: AppTextStyles.kCaption
-                  .copyWith(color: AppColors.kError),
+              style: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 13,
+                color: AppColors.kError,
+              ),
             ),
           ),
         ],
