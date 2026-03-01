@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:ppv_app/core/theme/app_colors.dart';
+import 'package:ppv_app/core/theme/app_spacing.dart';
+import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/notifications/domain/app_notification.dart';
 
 class NotificationListItem extends StatelessWidget {
@@ -13,94 +16,158 @@ class NotificationListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bg = notification.isRead
-        ? Colors.transparent
-        : theme.colorScheme.primary.withValues(alpha: 0.08);
+    final isUnread = !notification.isRead;
+    final (iconData, iconColor) = _iconForType(notification.type);
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        color: bg,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _NotificationIcon(type: notification.type),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: notification.isRead
-                          ? FontWeight.normal
-                          : FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    notification.body,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatDate(notification.createdAt),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
+    return Material(
+      color: isUnread
+          ? AppColors.kPrimary.withValues(alpha: 0.04)
+          : AppColors.kBgSurface,
+      borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+            border: Border.all(
+              color: isUnread
+                  ? AppColors.kPrimary.withValues(alpha: 0.15)
+                  : AppColors.kBorder,
             ),
-            if (!notification.isRead)
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Icône ────────────────────────────────────────────────
               Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(top: 4),
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  shape: BoxShape.circle,
+                  color: iconColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(iconData, size: 20, color: iconColor),
+              ),
+              const SizedBox(width: 14),
+              // ── Contenu ──────────────────────────────────────────────
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Titre + point non lu
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            style: AppTextStyles.kBodyMedium.copyWith(
+                              fontWeight: isUnread
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: AppColors.kTextPrimary,
+                            ),
+                          ),
+                        ),
+                        if (isUnread) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.kPrimary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Corps
+                    Text(
+                      notification.body,
+                      style: AppTextStyles.kCaption.copyWith(
+                        color: AppColors.kTextSecondary,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    // Date
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.access_time_rounded,
+                          size: 11,
+                          color: AppColors.kTextTertiary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatDate(notification.createdAt),
+                          style: AppTextStyles.kCaption.copyWith(
+                            fontSize: 11,
+                            color: AppColors.kTextTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  static (IconData, Color) _iconForType(String type) {
+    return switch (type) {
+      'payment_confirmed' => (
+          Icons.check_circle_outline_rounded,
+          AppColors.kSuccess,
+        ),
+      'payment_failed' => (
+          Icons.cancel_outlined,
+          AppColors.kError,
+        ),
+      'withdrawal_processed' => (
+          Icons.account_balance_rounded,
+          AppColors.kPrimary,
+        ),
+      'withdrawal_rejected' => (
+          Icons.account_balance_outlined,
+          AppColors.kError,
+        ),
+      'withdrawal_requested' => (
+          Icons.account_balance_wallet_outlined,
+          AppColors.kPrimary,
+        ),
+      'content_moderated' => (
+          Icons.image_outlined,
+          AppColors.kAccent,
+        ),
+      _ => (
+          Icons.notifications_outlined,
+          AppColors.kTextSecondary,
+        ),
+    };
+  }
+
+  static String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
     if (diff.inMinutes < 1) return 'À l\'instant';
     if (diff.inHours < 1) return 'Il y a ${diff.inMinutes} min';
     if (diff.inDays < 1) return 'Il y a ${diff.inHours} h';
     if (diff.inDays < 7) return 'Il y a ${diff.inDays} j';
-    return '${date.day}/${date.month}/${date.year}';
-  }
-}
-
-class _NotificationIcon extends StatelessWidget {
-  final String type;
-
-  const _NotificationIcon({required this.type});
-
-  @override
-  Widget build(BuildContext context) {
-    final icon = switch (type) {
-      'payment_confirmed'                                => Icons.check_circle_outline,
-      'payment_failed'                                   => Icons.error_outline,
-      'withdrawal_processed' || 'withdrawal_rejected' || 'withdrawal_requested' => Icons.account_balance_wallet_outlined,
-      'content_moderated'                                => Icons.image_outlined,
-      _                                                  => Icons.notifications_outlined,
-    };
-
-    return Icon(icon, size: 24, color: Theme.of(context).colorScheme.primary);
+    final d = date.day.toString().padLeft(2, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    return '$d/$m/${date.year}';
   }
 }
