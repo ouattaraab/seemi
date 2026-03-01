@@ -9,8 +9,14 @@ import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/auth/presentation/profile_provider.dart';
+import 'package:ppv_app/features/payout/presentation/payout_method_provider.dart';
+import 'package:ppv_app/features/wallet/presentation/wallet_provider.dart';
+import 'package:ppv_app/features/wallet/presentation/widgets/wallet_card.dart';
+import 'package:ppv_app/features/wallet/presentation/widgets/withdrawal_bottom_sheet.dart';
 
-/// Écran profil — onglet 4 de la bottom navigation.
+/// Onglet Profil — affiche le portefeuille (Gains) puis le profil utilisateur.
+///
+/// Remplace les deux anciens onglets "Gains" et "Profil".
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -29,7 +35,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<ProfileProvider>().loadProfile();
+      // Portefeuille
+      final wallet = context.read<WalletProvider>();
+      wallet.loadBalance();
+      wallet.loadWithdrawals();
+      context.read<PayoutMethodProvider>().loadExistingPayoutMethod();
     });
   }
 
@@ -40,12 +52,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  // ─── Build ───────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ProfileProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading && provider.user == null) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+              child: CircularProgressIndicator(color: AppColors.kPrimary));
         }
 
         if (provider.error != null && provider.user == null) {
@@ -53,6 +68,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const Icon(Icons.error_outline,
+                    color: AppColors.kError, size: 48),
+                const SizedBox(height: AppSpacing.kSpaceMd),
                 Text(
                   provider.error!,
                   style: AppTextStyles.kBodyMedium
@@ -71,67 +89,207 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         final user = provider.user;
         if (user == null) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+              child: CircularProgressIndicator(color: AppColors.kPrimary));
         }
 
         final fullName = [user.firstName, user.lastName]
             .where((s) => s != null && s.isNotEmpty)
             .join(' ');
 
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.kScreenMargin),
-          child: Column(
-            children: [
-              const SizedBox(height: AppSpacing.kSpaceXl),
-              // Avatar
-              _buildAvatar(user.avatarUrl),
-              const SizedBox(height: AppSpacing.kSpaceMd),
-              // Name
-              Text(
-                fullName.isEmpty ? 'Utilisateur' : fullName,
-                style: AppTextStyles.kHeadlineMedium,
-              ),
-              const SizedBox(height: AppSpacing.kSpaceXs),
-              // Phone (read-only)
-              Text(
-                user.phone,
-                style: AppTextStyles.kBodyMedium
-                    .copyWith(color: AppColors.kTextSecondary),
-              ),
-              const SizedBox(height: AppSpacing.kSpaceSm),
-              // KYC badge
-              _buildKycBadge(user.kycStatus),
-              const SizedBox(height: AppSpacing.kSpaceLg),
-              // Edit form or edit button
-              if (_isEditing)
-                _buildEditForm(provider)
-              else
-                _buildEditButton(),
-              const SizedBox(height: AppSpacing.kSpace2xl),
-              // Logout
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: FilledButton(
-                  onPressed: _logout,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.kError,
-                    foregroundColor: AppColors.kTextPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.kRadiusMd),
+        return RefreshIndicator(
+          color: AppColors.kPrimary,
+          onRefresh: () async {
+            await Future.wait([
+              provider.loadProfile(),
+              context.read<WalletProvider>().loadBalance(),
+              context.read<WalletProvider>().loadWithdrawals(),
+              context.read<PayoutMethodProvider>().loadExistingPayoutMethod(),
+            ]);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(AppSpacing.kScreenMargin),
+            child: Column(
+              children: [
+                const SizedBox(height: AppSpacing.kSpaceMd),
+
+                // ─── Section Gains ────────────────────────────────────────
+                _buildWalletSection(),
+
+                const SizedBox(height: AppSpacing.kSpaceLg),
+                _buildDividerWithLabel('Mon Profil'),
+                const SizedBox(height: AppSpacing.kSpaceLg),
+
+                // ─── Avatar ───────────────────────────────────────────────
+                _buildAvatar(user.avatarUrl),
+                const SizedBox(height: AppSpacing.kSpaceMd),
+
+                // Nom
+                Text(
+                  fullName.isEmpty ? 'Utilisateur' : fullName,
+                  style: AppTextStyles.kHeadlineMedium,
+                ),
+                const SizedBox(height: AppSpacing.kSpaceXs),
+
+                // Téléphone
+                Text(
+                  user.phone,
+                  style: AppTextStyles.kBodyMedium
+                      .copyWith(color: AppColors.kTextSecondary),
+                ),
+                const SizedBox(height: AppSpacing.kSpaceSm),
+
+                // Badge KYC
+                _buildKycBadge(user.kycStatus),
+                const SizedBox(height: AppSpacing.kSpaceLg),
+
+                // Formulaire ou bouton édition
+                if (_isEditing) _buildEditForm(provider) else _buildEditButton(),
+
+                const SizedBox(height: AppSpacing.kSpaceLg),
+
+                // Bouton déconnexion
+                SizedBox(
+                  width: double.infinity,
+                  height: AppSpacing.kButtonHeight,
+                  child: FilledButton.icon(
+                    onPressed: _logout,
+                    icon: const Icon(Icons.logout_rounded, size: 22),
+                    label: const Text('Déconnexion'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.kError,
+                      foregroundColor: Colors.white,
                     ),
                   ),
-                  child: const Text('Déconnexion'),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.kSpaceMd),
-            ],
+                const SizedBox(height: AppSpacing.kSpaceLg),
+              ],
+            ),
           ),
         );
       },
     );
   }
+
+  // ─── Section portefeuille ─────────────────────────────────────────────────
+
+  Widget _buildWalletSection() {
+    return Consumer2<WalletProvider, PayoutMethodProvider>(
+      builder: (context, walletProvider, payoutProvider, _) {
+        final hasPayoutMethod =
+            payoutProvider.existingPayoutMethod?.isActive ?? false;
+        final canWithdraw = walletProvider.balance > 0 &&
+            hasPayoutMethod &&
+            !walletProvider.isWithdrawing;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Carte solde
+            WalletCard(
+              balanceCentimes: walletProvider.balance,
+              isLoading: walletProvider.isLoading,
+            ),
+
+            if (walletProvider.error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                walletProvider.error!,
+                style: const TextStyle(
+                    color: AppColors.kError, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
+
+            const SizedBox(height: 12),
+
+            // Total gains
+            Center(
+              child: Text(
+                '${WalletCard.formatAmount(walletProvider.totalCredits ~/ 100)} gagnés au total',
+                key: const Key('total-credits-text'),
+                style: AppTextStyles.kBodyMedium
+                    .copyWith(color: AppColors.kTextSecondary),
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.kSpaceMd),
+
+            // Bouton Retirer
+            SizedBox(
+              width: double.infinity,
+              height: AppSpacing.kButtonHeight,
+              child: ElevatedButton.icon(
+                key: const Key('btn-withdraw'),
+                onPressed: canWithdraw
+                    ? () {
+                        walletProvider.clearWithdrawalError();
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: AppColors.kBgElevated,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(AppSpacing.kRadiusXl),
+                            ),
+                          ),
+                          builder: (_) => const WithdrawalBottomSheet(),
+                        );
+                      }
+                    : null,
+                icon: const Icon(Icons.account_balance_wallet_rounded,
+                    size: 22),
+                label: const Text('Retirer mes gains'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.kPrimary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.kBgElevated,
+                  disabledForegroundColor: AppColors.kTextTertiary,
+                ),
+              ),
+            ),
+
+            if (!hasPayoutMethod && !walletProvider.isLoading) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  'Configurez un moyen de reversement pour retirer',
+                  style: AppTextStyles.kCaption,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  // ─── Divider avec label ───────────────────────────────────────────────────
+
+  Widget _buildDividerWithLabel(String label) {
+    return Row(
+      children: [
+        const Expanded(child: Divider(color: AppColors.kDivider)),
+        Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: AppSpacing.kSpaceMd),
+          child: Text(
+            label,
+            style: AppTextStyles.kCaption.copyWith(
+              color: AppColors.kTextTertiary,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        const Expanded(child: Divider(color: AppColors.kDivider)),
+      ],
+    );
+  }
+
+  // ─── Avatar ───────────────────────────────────────────────────────────────
 
   Widget _buildAvatar(String? avatarUrl) {
     return GestureDetector(
@@ -139,17 +297,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Stack(
         children: [
           CircleAvatar(
-            radius: 48,
+            radius: 52,
             backgroundColor: AppColors.kBgElevated,
             backgroundImage: _selectedAvatar != null
                 ? FileImage(_selectedAvatar!)
-                : (avatarUrl != null ? NetworkImage(avatarUrl) : null),
-            onBackgroundImageError: avatarUrl != null
-                ? (_, __) {} // Suppress broken image error
-                : null,
+                : (avatarUrl != null
+                    ? NetworkImage(avatarUrl) as ImageProvider
+                    : null),
+            onBackgroundImageError:
+                avatarUrl != null ? (_, __) {} : null,
             child: (_selectedAvatar == null && avatarUrl == null)
-                ? const Icon(Icons.person,
-                    size: 48, color: AppColors.kTextTertiary)
+                ? const Icon(Icons.person_rounded,
+                    size: 52, color: AppColors.kTextTertiary)
                 : null,
           ),
           if (_isEditing)
@@ -157,13 +316,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               bottom: 0,
               right: 0,
               child: Container(
-                padding: const EdgeInsets.all(4),
+                padding: const EdgeInsets.all(8),
                 decoration: const BoxDecoration(
                   color: AppColors.kPrimary,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.camera_alt,
-                    size: 16, color: AppColors.kTextPrimary),
+                child: const Icon(Icons.camera_alt_rounded,
+                    size: 18, color: Colors.white),
               ),
             ),
         ],
@@ -171,45 +330,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ─── Badge KYC ────────────────────────────────────────────────────────────
+
   Widget _buildKycBadge(String kycStatus) {
-    Color color;
-    String label;
-    switch (kycStatus) {
-      case 'approved':
-        color = AppColors.kSuccess;
-        label = 'KYC vérifié';
-      case 'pending':
-        color = AppColors.kWarning;
-        label = 'KYC en attente';
-      case 'rejected':
-        color = AppColors.kError;
-        label = 'KYC rejeté';
-      default:
-        color = AppColors.kTextTertiary;
-        label = 'KYC non soumis';
-    }
+    final (color, label) = switch (kycStatus) {
+      'approved' => (AppColors.kSuccess, 'KYC vérifié'),
+      'pending' => (AppColors.kWarning, 'KYC en attente'),
+      'rejected' => (AppColors.kError, 'KYC rejeté'),
+      _ => (AppColors.kTextTertiary, 'KYC non soumis'),
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.kSpaceSm,
-        vertical: AppSpacing.kSpaceXs,
+        horizontal: AppSpacing.kSpaceMd,
+        vertical: AppSpacing.kSpaceXs + 2,
       ),
       decoration: BoxDecoration(
         color: color.withAlpha(30),
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusSm),
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusButton),
       ),
       child: Text(
         label,
-        style: AppTextStyles.kCaption.copyWith(color: color),
+        style: AppTextStyles.kLabelLarge.copyWith(color: color),
       ),
     );
   }
 
+  // ─── Bouton éditer ────────────────────────────────────────────────────────
+
   Widget _buildEditButton() {
     return SizedBox(
       width: double.infinity,
-      height: 48,
-      child: FilledButton(
+      height: AppSpacing.kButtonHeight,
+      child: OutlinedButton.icon(
         onPressed: () {
           final user = context.read<ProfileProvider>().user;
           _firstNameController.text = user?.firstName ?? '';
@@ -217,96 +370,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _selectedAvatar = null;
           setState(() => _isEditing = true);
         },
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.kPrimary,
+        icon: const Icon(Icons.edit_rounded, size: 20),
+        label: const Text('Modifier le profil'),
+        style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.kTextPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-          ),
+          side: const BorderSide(color: AppColors.kOutline, width: 1.5),
         ),
-        child: const Text('Modifier le profil'),
       ),
     );
   }
+
+  // ─── Formulaire d'édition ─────────────────────────────────────────────────
 
   Widget _buildEditForm(ProfileProvider provider) {
     return Form(
       key: _formKey,
       child: Column(
         children: [
-          // First name
           TextFormField(
             controller: _firstNameController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Prénom',
-              labelStyle: AppTextStyles.kCaption
-                  .copyWith(color: AppColors.kTextTertiary),
-              filled: true,
-              fillColor: AppColors.kBgElevated,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-                borderSide: BorderSide.none,
-              ),
+              prefixIcon: Icon(Icons.person_outline, size: 22),
             ),
             style: AppTextStyles.kBodyLarge,
             maxLength: 100,
           ),
           const SizedBox(height: AppSpacing.kSpaceMd),
-          // Last name
           TextFormField(
             controller: _lastNameController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Nom',
-              labelStyle: AppTextStyles.kCaption
-                  .copyWith(color: AppColors.kTextTertiary),
-              filled: true,
-              fillColor: AppColors.kBgElevated,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-                borderSide: BorderSide.none,
-              ),
+              prefixIcon: Icon(Icons.person_outline, size: 22),
             ),
             style: AppTextStyles.kBodyLarge,
             maxLength: 100,
           ),
           const SizedBox(height: AppSpacing.kSpaceMd),
-          // Phone (read-only)
           TextFormField(
             initialValue: provider.user?.phone ?? '',
             enabled: false,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Téléphone',
-              labelStyle: AppTextStyles.kCaption
-                  .copyWith(color: AppColors.kTextTertiary),
-              filled: true,
-              fillColor: AppColors.kBgElevated,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-                borderSide: BorderSide.none,
-              ),
+              prefixIcon: Icon(Icons.phone_outlined, size: 22),
             ),
             style: AppTextStyles.kBodyLarge
                 .copyWith(color: AppColors.kTextTertiary),
           ),
           const SizedBox(height: AppSpacing.kSpaceLg),
-          // Buttons
           Row(
             children: [
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: AppSpacing.kButtonHeight,
                   child: OutlinedButton(
                     onPressed: () {
                       _selectedAvatar = null;
                       setState(() => _isEditing = false);
                     },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.kTextSecondary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.kRadiusMd),
-                      ),
-                    ),
                     child: const Text('Annuler'),
                   ),
                 ),
@@ -314,24 +435,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(width: AppSpacing.kSpaceMd),
               Expanded(
                 child: SizedBox(
-                  height: 48,
+                  height: AppSpacing.kButtonHeight,
                   child: FilledButton(
-                    onPressed: provider.isLoading ? null : _submitProfile,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.kPrimary,
-                      foregroundColor: AppColors.kTextPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.kRadiusMd),
-                      ),
-                    ),
+                    onPressed:
+                        provider.isLoading ? null : _submitProfile,
                     child: provider.isLoading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 22,
+                            height: 22,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.kTextPrimary,
+                              strokeWidth: 2.5,
+                              color: Colors.white,
                             ),
                           )
                         : const Text('Enregistrer'),
@@ -344,6 +458,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  // ─── Actions ──────────────────────────────────────────────────────────────
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
@@ -360,18 +476,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _submitProfile() async {
     final provider = context.read<ProfileProvider>();
-
-    final firstName = _firstNameController.text.trim();
-    final lastName = _lastNameController.text.trim();
-
     final success = await provider.updateProfile(
-      firstName: firstName.isNotEmpty ? firstName : null,
-      lastName: lastName.isNotEmpty ? lastName : null,
+      firstName: _firstNameController.text.trim().isNotEmpty
+          ? _firstNameController.text.trim()
+          : null,
+      lastName: _lastNameController.text.trim().isNotEmpty
+          ? _lastNameController.text.trim()
+          : null,
       avatar: _selectedAvatar,
     );
-
     if (!mounted) return;
-
     if (success) {
       setState(() {
         _isEditing = false;

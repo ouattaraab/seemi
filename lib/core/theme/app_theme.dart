@@ -3,29 +3,28 @@ import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
 
-/// ThemeData PPV — Dark Theme exclusif, Material Design 3.
+/// ThemeData SeeMi — Dark Blue Theme, Material Design 3.
 ///
-/// Utiliser `AppTheme.darkTheme` dans MaterialApp.
-/// NE PAS utiliser `ColorScheme.fromSeed()` — contrôle exact des hex.
-/// NE PAS utiliser `ColorScheme.dark()` — legacy Material 2.
+/// Couleur primaire : iOS Blue (#0A84FF).
+/// Boutons : hauteur 56px minimum pour les CTA.
 abstract final class AppTheme {
   static ThemeData get darkTheme {
     const colorScheme = ColorScheme(
       brightness: Brightness.dark,
       primary: AppColors.kPrimary,
-      onPrimary: AppColors.kBgBase,
+      onPrimary: Colors.white,
       primaryContainer: AppColors.kPrimaryDark,
       onPrimaryContainer: AppColors.kPrimaryLight,
       secondary: AppColors.kAccentOrange,
-      onSecondary: AppColors.kBgBase,
+      onSecondary: Colors.white,
       secondaryContainer: AppColors.kAccentOrangeDark,
       onSecondaryContainer: AppColors.kAccentOrangeLight,
       tertiary: AppColors.kAccentViolet,
-      onTertiary: AppColors.kBgBase,
+      onTertiary: Colors.white,
       tertiaryContainer: AppColors.kAccentVioletDark,
       onTertiaryContainer: AppColors.kAccentVioletLight,
       error: AppColors.kError,
-      onError: AppColors.kTextPrimary,
+      onError: Colors.white,
       surface: AppColors.kBgSurface,
       onSurface: AppColors.kTextPrimary,
       onSurfaceVariant: AppColors.kTextSecondary,
@@ -74,31 +73,45 @@ abstract final class AppTheme {
     elevation: 0,
     centerTitle: true,
     foregroundColor: AppColors.kTextPrimary,
-  );
-
-  // ─── Elevated Button (Primary Teal) ───
-  static final _elevatedButtonTheme = ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: AppColors.kPrimary,
-      foregroundColor: AppColors.kBgBase,
-      minimumSize: const Size.fromHeight(48),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-      ),
-      textStyle: AppTextStyles.kTitleLarge.copyWith(color: AppColors.kBgBase),
+    titleTextStyle: TextStyle(
+      color: AppColors.kTextPrimary,
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
     ),
   );
 
-  // ─── Filled Button (Primary Teal) ───
-  static final _filledButtonTheme = FilledButtonThemeData(
-    style: FilledButton.styleFrom(
+  // ─── Elevated Button (Primary Blue) ───
+  static final _elevatedButtonTheme = ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
       backgroundColor: AppColors.kPrimary,
-      foregroundColor: AppColors.kBgBase,
-      minimumSize: const Size.fromHeight(48),
+      foregroundColor: Colors.white,
+      minimumSize: const Size.fromHeight(AppSpacing.kButtonHeight),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
       ),
-      textStyle: AppTextStyles.kTitleLarge.copyWith(color: AppColors.kBgBase),
+      textStyle: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+      ),
+      elevation: 0,
+    ),
+  );
+
+  // ─── Filled Button (Primary Blue) ───
+  static final _filledButtonTheme = FilledButtonThemeData(
+    style: FilledButton.styleFrom(
+      backgroundColor: AppColors.kPrimary,
+      foregroundColor: Colors.white,
+      minimumSize: const Size.fromHeight(AppSpacing.kButtonHeight),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
+      ),
+      textStyle: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+      ),
     ),
   );
 
@@ -106,29 +119,37 @@ abstract final class AppTheme {
   static final _outlinedButtonTheme = OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
       foregroundColor: AppColors.kTextPrimary,
-      minimumSize: const Size.fromHeight(48),
-      side: const BorderSide(color: AppColors.kOutline),
+      minimumSize: const Size.fromHeight(AppSpacing.kButtonHeight),
+      side: const BorderSide(color: AppColors.kOutline, width: 1.5),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusButton),
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
       ),
-      textStyle: AppTextStyles.kTitleLarge,
+      textStyle: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      ),
     ),
   );
 
-  // ─── Text Button (Ghost Teal) ───
+  // ─── Text Button (Ghost Blue) ───
   static final _textButtonTheme = TextButtonThemeData(
     style: TextButton.styleFrom(
       foregroundColor: AppColors.kPrimary,
-      textStyle: AppTextStyles.kTitleLarge.copyWith(color: AppColors.kPrimary),
+      textStyle: const TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: AppColors.kPrimary,
+      ),
     ),
   );
 
   // ─── Card ───
   static final _cardTheme = CardThemeData(
     color: AppColors.kBgSurface,
-    elevation: 1,
+    elevation: 0,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+      side: const BorderSide(color: AppColors.kDivider),
     ),
   );
 
@@ -144,9 +165,16 @@ abstract final class AppTheme {
       borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
       borderSide: const BorderSide(color: AppColors.kPrimary, width: 2),
     ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
+      borderSide: BorderSide.none,
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
     hintStyle: AppTextStyles.kBodyMedium.copyWith(
       color: AppColors.kTextTertiary,
+    ),
+    labelStyle: AppTextStyles.kBodyMedium.copyWith(
+      color: AppColors.kTextSecondary,
     ),
   );
 
@@ -158,12 +186,22 @@ abstract final class AppTheme {
     showSelectedLabels: true,
     showUnselectedLabels: true,
     type: BottomNavigationBarType.fixed,
+    selectedLabelStyle: TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+    ),
+    unselectedLabelStyle: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+    ),
+    elevation: 12,
   );
 
   // ─── Floating Action Button ───
   static const _floatingActionButtonTheme = FloatingActionButtonThemeData(
     backgroundColor: AppColors.kPrimary,
-    foregroundColor: AppColors.kBgBase,
+    foregroundColor: Colors.white,
+    elevation: 4,
   );
 
   // ─── Chip ───
@@ -175,6 +213,7 @@ abstract final class AppTheme {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppSpacing.kRadiusSm),
     ),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
   );
 
   // ─── SnackBar ───

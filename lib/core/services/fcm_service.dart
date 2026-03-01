@@ -13,8 +13,13 @@ class FcmService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   /// Abonnement courant au stream onTokenRefresh.
-  /// Conservé pour annulation avant re-souscription (évite les listener leaks).
   StreamSubscription<String>? _tokenRefreshSubscription;
+
+  /// Abonnement aux messages reçus en foreground (app ouverte).
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
+
+  /// Abonnement aux taps sur notifications reçues en background.
+  StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
 
   /// Initialise les permissions FCM et retourne le token device.
   ///
@@ -30,6 +35,13 @@ class FcmService {
       return null;
     }
 
+    // Active les notifications foreground sur iOS (badge + son + alerte).
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     final token = await _messaging.getToken();
     // HIGH-FCM : ne jamais logger le token FCM — il suffit à envoyer des notifications
     // arbitraires au device. Visible via `adb logcat` sur Android non chiffré.
@@ -40,9 +52,43 @@ class FcmService {
   ///
   /// Annule l'abonnement précédent avant d'en créer un nouveau pour éviter
   /// l'accumulation de listeners sur les cycles login/logout.
-  /// [onTokenRefresh] est appelé avec le nouveau token dès qu'il change.
   void listenTokenRefresh(void Function(String token) onTokenRefresh) {
     _tokenRefreshSubscription?.cancel();
     _tokenRefreshSubscription = _messaging.onTokenRefresh.listen(onTokenRefresh);
+  }
+
+  /// Écoute les messages FCM reçus pendant que l'app est en **foreground**.
+  ///
+  /// [onMessage] est appelé avec le message dès réception.
+  /// Annule l'abonnement précédent avant d'en créer un nouveau.
+  void listenForegroundMessages(void Function(RemoteMessage) onMessage) {
+    _foregroundMessageSubscription?.cancel();
+    _foregroundMessageSubscription =
+        FirebaseMessaging.onMessage.listen(onMessage);
+  }
+
+  /// Écoute les taps utilisateur sur les notifications système reçues
+  /// quand l'app était en **background** (mais pas terminated).
+  ///
+  /// [onOpened] est appelé avec le message associé à la notification tapée.
+  void listenMessageOpenedApp(void Function(RemoteMessage) onOpened) {
+    _messageOpenedSubscription?.cancel();
+    _messageOpenedSubscription =
+        FirebaseMessaging.onMessageOpenedApp.listen(onOpened);
+  }
+
+  /// Récupère le message qui a lancé l'app depuis l'état **terminated**.
+  ///
+  /// Retourne null si l'app n'a pas été ouverte via une notification.
+  Future<RemoteMessage?> getInitialMessage() =>
+      _messaging.getInitialMessage();
+
+  /// Annule les abonnements foreground et onMessageOpenedApp.
+  /// À appeler dans le [dispose] du widget qui a branché les listeners.
+  void cancelMessageListeners() {
+    _foregroundMessageSubscription?.cancel();
+    _foregroundMessageSubscription = null;
+    _messageOpenedSubscription?.cancel();
+    _messageOpenedSubscription = null;
   }
 }

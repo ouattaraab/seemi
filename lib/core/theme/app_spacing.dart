@@ -1,6 +1,6 @@
-/// Système de spacing PPV — base 8px.
+/// Système de spacing SeeMi — base 8px, optimisé mobile.
 ///
-/// Utiliser ces constantes au lieu de valeurs magiques.
+/// Touch targets minimum 56px pour les CTA principaux.
 abstract final class AppSpacing {
   // ─── Spacing (système 8px) ───
   static const double kSpaceXs = 4;
@@ -12,15 +12,24 @@ abstract final class AppSpacing {
 
   // ─── Corner Radius ───
   static const double kRadiusSm = 8;
-  static const double kRadiusButton = 10;
-  static const double kRadiusMd = 12;
-  static const double kRadiusCta = 14;
-  static const double kRadiusLg = 16;
-  static const double kRadiusXl = 24;
+  static const double kRadiusButton = 14;
+  static const double kRadiusMd = 14;
+  static const double kRadiusCta = 16;
+  static const double kRadiusLg = 20;
+  static const double kRadiusXl = 28;
+
+  // ─── Touch Targets ───
+  /// Hauteur minimum des boutons CTA principaux (grands doigts).
+  static const double kButtonHeight = 56;
+
+  /// Hauteur des boutons secondaires.
+  static const double kButtonHeightSm = 48;
 
   // ─── Icon Sizes ───
   static const double kIconSizeHero = 80;
+  static const double kIconSizeLg = 32;
+  static const double kIconSizeMd = 24;
 
   // ─── Screen Margins ───
-  static const double kScreenMargin = 16;
+  static const double kScreenMargin = 20;
 }

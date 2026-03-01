@@ -1,61 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 
-/// Hiérarchie typographique PPV — Roboto (natif Material).
+/// Hiérarchie typographique SeeMi — tailles augmentées pour mobile.
 ///
-/// Line-height 1.5 pour body text, 1.2 pour display/headlines.
+/// Optimisé pour la lisibilité sur grand écran et les doigts épais.
 abstract final class AppTextStyles {
   static const TextStyle kDisplayLarge = TextStyle(
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: FontWeight.w800,
     height: 1.2,
     color: AppColors.kTextPrimary,
+    letterSpacing: -0.5,
   );
 
   static const TextStyle kHeadlineLarge = TextStyle(
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: FontWeight.w700,
     height: 1.2,
     color: AppColors.kTextPrimary,
+    letterSpacing: -0.3,
   );
 
   static const TextStyle kHeadlineMedium = TextStyle(
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: FontWeight.w600,
     height: 1.3,
     color: AppColors.kTextPrimary,
   );
 
   static const TextStyle kTitleLarge = TextStyle(
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: FontWeight.w600,
     height: 1.4,
     color: AppColors.kTextPrimary,
   );
 
   static const TextStyle kBodyLarge = TextStyle(
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: FontWeight.w400,
     height: 1.5,
     color: AppColors.kTextPrimary,
   );
 
   static const TextStyle kBodyMedium = TextStyle(
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: FontWeight.w400,
     height: 1.5,
     color: AppColors.kTextPrimary,
   );
 
   static const TextStyle kLabelLarge = TextStyle(
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: FontWeight.w600,
     height: 1.4,
     color: AppColors.kTextPrimary,
   );
 
   static const TextStyle kCaption = TextStyle(
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: FontWeight.w400,
     height: 1.5,
     color: AppColors.kTextSecondary,
