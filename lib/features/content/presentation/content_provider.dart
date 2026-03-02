@@ -160,6 +160,15 @@ class ContentProvider extends ChangeNotifier {
     }
   }
 
+  /// Récupère un contenu par son ID (utilisé pour le polling du blur).
+  Future<Content?> getContent(int id) async {
+    try {
+      return await _repository.getContent(id);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Reset l'état d'erreur.
   void clearError() {
     _error = null;

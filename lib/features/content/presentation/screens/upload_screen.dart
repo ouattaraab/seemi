@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -47,8 +48,16 @@ class _UploadScreenState extends State<UploadScreen> {
   // ── Partage ──
   String? _shareUrl;
 
+  // ── Blur preview (polling) ──
+  Timer? _blurPollTimer;
+  String? _blurPreviewUrl;
+  bool _blurPolling = false;
+  int _blurPollCount = 0;
+  static const int _blurPollMaxAttempts = 15; // 30s ÷ 2s
+
   @override
   void dispose() {
+    _blurPollTimer?.cancel();
     _priceCtrl.dispose();
     super.dispose();
   }
@@ -159,9 +168,13 @@ class _UploadScreenState extends State<UploadScreen> {
 
     if (!mounted) return;
     if (success) {
+      final contentId = provider.lastUploadedContent?.id;
       setState(() {
-        _uploadedContentId = provider.lastUploadedContent?.id;
+        _uploadedContentId = contentId;
       });
+      if (contentId != null) {
+        _startBlurPolling(contentId);
+      }
     } else {
       _showSnack(provider.error ?? 'Erreur lors du téléchargement');
     }
@@ -170,6 +183,33 @@ class _UploadScreenState extends State<UploadScreen> {
   Future<void> _retryUpload() async {
     context.read<ContentProvider>().resetUploadState();
     await _startUpload();
+  }
+
+  // ─── Polling aperçu flou ───────────────────────────────────────────────────
+
+  void _startBlurPolling(int contentId) {
+    _blurPollCount = 0;
+    setState(() => _blurPolling = true);
+    _blurPollTimer?.cancel();
+    _blurPollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      _blurPollCount++;
+      final content =
+          await context.read<ContentProvider>().getContent(contentId);
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (content?.blurUrl != null) {
+        timer.cancel();
+        setState(() {
+          _blurPreviewUrl = content!.blurUrl;
+          _blurPolling = false;
+        });
+      } else if (_blurPollCount >= _blurPollMaxAttempts) {
+        timer.cancel();
+        setState(() => _blurPolling = false);
+      }
+    });
   }
 
   // ─── Publication ──────────────────────────────────────────────────────────
@@ -245,6 +285,7 @@ class _UploadScreenState extends State<UploadScreen> {
   // ─── Reset ────────────────────────────────────────────────────────────────
 
   void _reset() {
+    _blurPollTimer?.cancel();
     context.read<ContentProvider>().resetUploadState();
     setState(() {
       _contentType = null;
@@ -256,6 +297,10 @@ class _UploadScreenState extends State<UploadScreen> {
       _tosAccepted = false;
       _publishError = null;
       _shareUrl = null;
+      _blurPollTimer = null;
+      _blurPreviewUrl = null;
+      _blurPolling = false;
+      _blurPollCount = 0;
     });
   }
 
@@ -687,6 +732,27 @@ class _UploadScreenState extends State<UploadScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Aperçu flou (acheteur) ──────────────────────────────────────────
+        if (_blurPreviewUrl != null || _blurPolling) ...[
+          const _SectionLabel('Aperçu flou (acheteur)'),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: _blurPreviewUrl != null
+                  ? Image.network(
+                      _blurPreviewUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const _GradientBlurPlaceholder(loading: false),
+                    )
+                  : const _GradientBlurPlaceholder(loading: true),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.kSpaceLg),
+        ],
+
         const _SectionLabel('Définir le prix'),
         const SizedBox(height: 12),
 
@@ -1481,6 +1547,90 @@ class _SourcePickerSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── _GradientBlurPlaceholder ─────────────────────────────────────────────────
+
+/// Placeholder animé affiché pendant le polling du blur ou en cas d'erreur de chargement.
+class _GradientBlurPlaceholder extends StatefulWidget {
+  final bool loading;
+
+  const _GradientBlurPlaceholder({required this.loading});
+
+  @override
+  State<_GradientBlurPlaceholder> createState() =>
+      _GradientBlurPlaceholderState();
+}
+
+class _GradientBlurPlaceholderState extends State<_GradientBlurPlaceholder>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _anim = Tween<double>(begin: 0.6, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (_, __) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.kPrimary.withValues(alpha: 0.30 * _anim.value),
+              AppColors.kAccent.withValues(alpha: 0.20 * _anim.value),
+              AppColors.kBgElevated,
+            ],
+          ),
+        ),
+        child: widget.loading
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: AppColors.kPrimary.withValues(alpha: 0.70),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Génération du flou...',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.kTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : null,
       ),
     );
   }
