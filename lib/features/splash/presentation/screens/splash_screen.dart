@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/storage/secure_storage_service.dart';
-import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
+import 'package:ppv_app/core/widgets/seemi_logo.dart';
 
 /// Écran splash PPV — logo centré, redirige après 2 secondes.
 ///
@@ -61,11 +61,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.visibility,
-              size: 80,
-              color: AppColors.kPrimary,
-            ),
+            SeeMiLogo(size: 80),
             SizedBox(height: AppSpacing.kSpaceLg),
             Text(
               'SeeMi',

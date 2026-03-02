@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
+import 'package:ppv_app/core/widgets/seemi_logo.dart';
 import 'package:ppv_app/features/auth/presentation/auth_provider.dart';
 
 /// Écran de connexion — email ou téléphone + mot de passe.
@@ -228,26 +229,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: AppColors.kPrimary.withValues(alpha: 0.08),
                   ),
                 ),
-                // Image logo
-                ClipOval(
-                  child: SizedBox(
-                    width: 68,
-                    height: 68,
-                    child: Image.asset(
-                      'assets/images/logo_seemi.png',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Container(
-                        color: AppColors.kPrimary,
-                        child: const Icon(
-                          Icons.visibility_rounded,
-                          color: Colors.white,
-                          size: 36,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                // Logo SeeMi
+                const SeeMiLogo(size: 68),
               ],
             ),
           ),
