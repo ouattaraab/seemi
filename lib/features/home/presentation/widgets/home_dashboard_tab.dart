@@ -428,12 +428,11 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
   Widget _buildPerformanceSection() {
     return Consumer<ContentProvider>(
       builder: (context, provider, child) {
-        final totalViews =
-            provider.myContents.fold(0, (s, c) => s + c.viewCount);
-        final totalSales =
-            provider.myContents.fold(0, (s, c) => s + c.purchaseCount);
+        // C2 — Utilise les getters du provider qui gèrent le cache hors-ligne
+        final totalViews = provider.totalViews;
+        final totalSales = provider.totalSales;
         final loading =
-            provider.isFetchingContents && provider.myContents.isEmpty;
+            provider.isFetchingContents && provider.myContents.isEmpty && provider.totalViews == 0;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),

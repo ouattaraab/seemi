@@ -4,8 +4,7 @@
 <dict>
     <key>com.apple.developer.associated-domains</key>
     <array>
-        <!-- Remplacer VOTRE_DOMAINE_HOSTINGER par la valeur de APP_URL dans ppv-api/.env -->
-        <string>applinks:VOTRE_DOMAINE_HOSTINGER</string>
+        <string>applinks:seemi.click</string>
     </array>
 </dict>
 </plist>

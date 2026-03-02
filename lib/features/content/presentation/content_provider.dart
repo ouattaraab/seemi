@@ -1,8 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ppv_app/features/content/data/content_repository.dart';
 import 'package:ppv_app/features/content/domain/content.dart';
+
+// C2 — Clés de cache SharedPreferences pour les stats hors-ligne
+const _kCacheStatsViews    = 'cache_stats_total_views';
+const _kCacheStatsSales    = 'cache_stats_total_sales';
 
 /// Provider de gestion des contenus — pattern loading/error/data avec progression upload.
 class ContentProvider extends ChangeNotifier {
@@ -27,6 +32,10 @@ class ContentProvider extends ChangeNotifier {
   String? _nextCursor;
   bool _hasMore = false;
 
+  // C2 — Stats cached pour affichage hors-ligne
+  int _cachedTotalViews = 0;
+  int _cachedTotalSales = 0;
+
   bool get isLoading => _isLoading;
   bool get isPublishing => _isPublishing;
   String? get error => _error;
@@ -38,6 +47,14 @@ class ContentProvider extends ChangeNotifier {
   bool get isFetchingContents => _isFetchingContents;
   String? get contentsError => _contentsError;
   bool get hasMore => _hasMore;
+
+  // C2 — Getters stats offline (valeurs live si contenus chargés, sinon cache)
+  int get totalViews => _myContents.isNotEmpty
+      ? _myContents.fold(0, (s, c) => s + c.viewCount)
+      : _cachedTotalViews;
+  int get totalSales => _myContents.isNotEmpty
+      ? _myContents.fold(0, (s, c) => s + c.purchaseCount)
+      : _cachedTotalSales;
 
   @override
   void dispose() {
@@ -127,11 +144,17 @@ class ContentProvider extends ChangeNotifier {
   }
 
   /// Charge la liste des contenus de l'utilisateur courant avec pagination cursor-based.
+  /// Affiche les stats cached immédiatement si disponibles (C2 — mode hors-ligne).
   ///
   /// [refresh] = true recharge depuis le début.
   Future<void> loadMyContents({bool refresh = false}) async {
     if (_isFetchingContents) return;
     if (!refresh && !_hasMore && _myContents.isNotEmpty) return;
+
+    // C2 — Restaurer les stats cached avant la requête réseau
+    if (refresh || _myContents.isEmpty) {
+      await _restoreStatsFromCache();
+    }
 
     if (refresh) {
       _myContents = [];
@@ -150,14 +173,37 @@ class ContentProvider extends ChangeNotifier {
           : [..._myContents, ...result.contents];
       _nextCursor = result.nextCursor;
       _hasMore = result.hasMore;
+      // C2 — Persister les stats après chargement réseau réussi
+      await _persistStatsToCache();
     } catch (e) {
       final raw = e.toString().replaceFirst('Exception: ', '');
       _contentsError =
           raw.isNotEmpty ? raw : 'Erreur lors du chargement des contenus.';
+      // C2 — En mode hors-ligne, les stats cached restent affichées via totalViews/totalSales
     } finally {
       _isFetchingContents = false;
       _safeNotify();
     }
+  }
+
+  Future<void> _persistStatsToCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final views = _myContents.fold(0, (s, c) => s + c.viewCount);
+      final sales = _myContents.fold(0, (s, c) => s + c.purchaseCount);
+      await prefs.setInt(_kCacheStatsViews, views);
+      await prefs.setInt(_kCacheStatsSales, sales);
+      _cachedTotalViews = views;
+      _cachedTotalSales = sales;
+    } catch (_) {}
+  }
+
+  Future<void> _restoreStatsFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _cachedTotalViews = prefs.getInt(_kCacheStatsViews) ?? 0;
+      _cachedTotalSales = prefs.getInt(_kCacheStatsSales) ?? 0;
+    } catch (_) {}
   }
 
   /// Récupère un contenu par son ID (utilisé pour le polling du blur).

@@ -5,6 +5,7 @@ import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
+import 'package:ppv_app/features/payout/domain/payout_constants.dart';
 import 'package:ppv_app/features/payout/presentation/payout_method_provider.dart';
 
 /// Écran de configuration du moyen de reversement.
@@ -55,7 +56,7 @@ class _PayoutMethodScreenState extends State<PayoutMethodScreen> {
 
     if (holderName.isEmpty || accountNumber.isEmpty) return false;
 
-    if (provider.selectedType == 'mobile_money') {
+    if (provider.selectedType == PayoutConstants.kTypeMobileMoney) {
       return provider.isValidMobileMoneyNumber(accountNumber);
     } else {
       return _bankNameController.text.trim().isNotEmpty;
@@ -67,7 +68,7 @@ class _PayoutMethodScreenState extends State<PayoutMethodScreen> {
     final success = await provider.submitPayoutMethod(
       accountNumber: _accountNumberController.text.trim(),
       accountHolderName: _accountHolderNameController.text.trim(),
-      bankName: provider.selectedType == 'bank_account'
+      bankName: provider.selectedType == PayoutConstants.kTypeBankAccount
           ? _bankNameController.text.trim()
           : null,
     );
@@ -111,7 +112,7 @@ class _PayoutMethodScreenState extends State<PayoutMethodScreen> {
                           const SizedBox(height: AppSpacing.kSpaceLg),
                           _buildTypeSelector(provider),
                           const SizedBox(height: AppSpacing.kSpaceLg),
-                          if (provider.selectedType == 'mobile_money')
+                          if (provider.selectedType == PayoutConstants.kTypeMobileMoney)
                             _buildMobileMoneyForm(provider)
                           else
                             _buildBankAccountForm(provider),
@@ -159,12 +160,12 @@ class _PayoutMethodScreenState extends State<PayoutMethodScreen> {
           child: _TypeCard(
             icon: Icons.phone_android,
             label: 'Mobile Money',
-            isSelected: provider.selectedType == 'mobile_money',
+            isSelected: provider.selectedType == PayoutConstants.kTypeMobileMoney,
             onTap: () {
-              if (provider.selectedType != 'mobile_money') {
+              if (provider.selectedType != PayoutConstants.kTypeMobileMoney) {
                 _accountNumberController.clear();
               }
-              provider.setPayoutType('mobile_money');
+              provider.setPayoutType(PayoutConstants.kTypeMobileMoney);
             },
           ),
         ),
@@ -173,12 +174,12 @@ class _PayoutMethodScreenState extends State<PayoutMethodScreen> {
           child: _TypeCard(
             icon: Icons.account_balance,
             label: 'Compte bancaire',
-            isSelected: provider.selectedType == 'bank_account',
+            isSelected: provider.selectedType == PayoutConstants.kTypeBankAccount,
             onTap: () {
-              if (provider.selectedType != 'bank_account') {
+              if (provider.selectedType != PayoutConstants.kTypeBankAccount) {
                 _accountNumberController.clear();
               }
-              provider.setPayoutType('bank_account');
+              provider.setPayoutType(PayoutConstants.kTypeBankAccount);
             },
           ),
         ),
@@ -206,9 +207,9 @@ class _PayoutMethodScreenState extends State<PayoutMethodScreen> {
             ),
           ),
           items: const [
-            DropdownMenuItem(value: 'orange', child: Text('Orange Money')),
-            DropdownMenuItem(value: 'mtn', child: Text('MTN MoMo')),
-            DropdownMenuItem(value: 'wave', child: Text('Wave')),
+            DropdownMenuItem(value: PayoutConstants.kProviderOrange, child: Text('Orange Money')),
+            DropdownMenuItem(value: PayoutConstants.kProviderMtn,    child: Text('MTN MoMo')),
+            DropdownMenuItem(value: PayoutConstants.kProviderWave,   child: Text('Wave')),
           ],
           onChanged: (value) {
             if (value != null) provider.setProvider(value);

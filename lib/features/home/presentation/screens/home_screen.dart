@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/services/fcm_service.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
+import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/features/auth/presentation/screens/profile_screen.dart';
 import 'package:ppv_app/features/home/presentation/widgets/home_dashboard_tab.dart';
 import 'package:ppv_app/features/notifications/presentation/notification_list_screen.dart';
@@ -23,6 +24,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Mapping nav index → stack index (index 1 = Upload n'a pas de stack)
   int get _stackIndex => _currentIndex > 1 ? _currentIndex - 1 : _currentIndex;
+
+  // Lazy loading : seul stackIndex 0 est initialisé au démarrage
+  final Set<int> _visitedTabs = {0};
+
+  void _navigateToTab(int navIndex) {
+    setState(() {
+      _currentIndex = navIndex;
+      _visitedTabs.add(navIndex > 1 ? navIndex - 1 : navIndex);
+    });
+  }
 
   @override
   void initState() {
@@ -72,15 +83,15 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppColors.kBgBase,
       body: IndexedStack(
         index: _stackIndex,
-        children: const [
-          HomeDashboardTab(), // stack 0 → nav 0
-          WalletScreen(),     // stack 1 → nav 2
-          ProfileScreen(),    // stack 2 → nav 3
+        children: [
+          _visitedTabs.contains(0) ? const HomeDashboardTab() : const SizedBox.shrink(), // stack 0 → nav 0
+          _visitedTabs.contains(1) ? const WalletScreen()     : const SizedBox.shrink(), // stack 1 → nav 2
+          _visitedTabs.contains(2) ? const ProfileScreen()    : const SizedBox.shrink(), // stack 2 → nav 3
         ],
       ),
       bottomNavigationBar: _BottomNav(
         currentIndex: _currentIndex,
-        onIndexChanged: (i) => setState(() => _currentIndex = i),
+        onIndexChanged: _navigateToTab,
         onUpload: () => context.push(RouteNames.kRouteUpload),
       ),
     );
@@ -136,8 +147,8 @@ class _BottomNav extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: AppSpacing.kIconSizeXl,
+                        height: AppSpacing.kIconSizeXl,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.kPrimary,

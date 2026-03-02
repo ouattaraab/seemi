@@ -21,25 +21,25 @@ class _OnboardingPage {
 const _pages = [
   _OnboardingPage(
     icon: Icons.camera_alt_outlined,
-    title: 'Partagez vos photos',
+    title: 'Publie en 30 secondes',
     description:
-        'Prenez ou sélectionnez vos plus belles photos depuis votre galerie',
+        'Uploade ta photo ou vidéo, fixe ton prix et génère un lien partageable immédiatement.',
   ),
   _OnboardingPage(
-    icon: Icons.monetization_on_outlined,
-    title: 'Fixez votre prix',
+    icon: Icons.link_outlined,
+    title: 'Partage ton lien',
     description:
-        'Définissez le montant que les acheteurs paieront pour voir votre contenu',
+        'Envoie le lien sur Instagram, WhatsApp ou Telegram. Tes fans cliquent et paient directement.',
   ),
   _OnboardingPage(
     icon: Icons.account_balance_wallet_outlined,
-    title: 'Gagnez de l\'argent',
+    title: 'Encaisse directement',
     description:
-        'Recevez vos gains directement sur votre Mobile Money ou compte bancaire',
+        'Les paiements arrivent sur ton portefeuille SeeMi. Retire sur Mobile Money ou compte bancaire.',
   ),
 ];
 
-/// Écran d'onboarding 3 pages — introduction à PPV.
+/// Écran d'onboarding 3 pages — introduction à SeeMi (C1).
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -74,6 +74,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  void _skip() => context.go(RouteNames.kRouteRegister);
+
   @override
   Widget build(BuildContext context) {
     final isLastPage = _currentPage == _pages.length - 1;
@@ -84,6 +86,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           padding: const EdgeInsets.all(AppSpacing.kScreenMargin),
           child: Column(
             children: [
+              // Bouton "Passer" en haut à droite
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _skip,
+                  child: Text(
+                    'Passer',
+                    style: AppTextStyles.kBodyMedium.copyWith(
+                      color: AppColors.kTextSecondary,
+                    ),
+                  ),
+                ),
+              ),
               Expanded(
                 child: PageView.builder(
                   controller: _pageController,
@@ -105,9 +120,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _nextPage,
-                  child: Text(isLastPage ? 'Commencer' : 'Suivant'),
+                  child: Text(isLastPage ? 'Créer mon compte' : 'Suivant'),
                 ),
               ),
+              // Lien "Se connecter" visible sur la dernière page
+              if (isLastPage) ...[
+                const SizedBox(height: AppSpacing.kSpaceMd),
+                TextButton(
+                  onPressed: () => context.go(RouteNames.kRouteLogin),
+                  child: Text(
+                    'Déjà un compte ? Se connecter',
+                    style: AppTextStyles.kBodyMedium.copyWith(
+                      color: AppColors.kPrimary,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.kSpaceSm),
             ],
           ),
         ),

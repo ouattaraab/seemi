@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:ppv_app/features/payout/data/payout_repository.dart';
+import 'package:ppv_app/features/payout/domain/payout_constants.dart';
 import 'package:ppv_app/features/payout/domain/payout_method.dart';
 
 /// Provider moyen de reversement — gère la configuration et l'affichage.
@@ -12,8 +13,8 @@ class PayoutMethodProvider extends ChangeNotifier {
   // --- State ---
   bool _isLoading = false;
   String? _error;
-  String _selectedType = 'mobile_money';
-  String _selectedProvider = 'orange';
+  String _selectedType = PayoutConstants.kTypeMobileMoney;
+  String _selectedProvider = PayoutConstants.kProviderOrange;
   PayoutMethod? _existingPayoutMethod;
   bool _disposed = false;
 
@@ -86,10 +87,10 @@ class PayoutMethodProvider extends ChangeNotifier {
     try {
       _existingPayoutMethod = await _repository.configurePayoutMethod(
         payoutType: _selectedType,
-        provider: _selectedType == 'mobile_money' ? _selectedProvider : null,
+        provider: _selectedType == PayoutConstants.kTypeMobileMoney ? _selectedProvider : null,
         accountNumber: accountNumber,
         accountHolderName: accountHolderName,
-        bankName: _selectedType == 'bank_account' ? bankName : null,
+        bankName: _selectedType == PayoutConstants.kTypeBankAccount ? bankName : null,
       );
       _isLoading = false;
       _safeNotify();

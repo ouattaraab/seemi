@@ -21,8 +21,10 @@ abstract final class AppSpacing {
 
   // Icons
   static const double kIconSizeHero = 80;
+  static const double kIconSizeXl   = 48;
   static const double kIconSizeLg   = 32;
   static const double kIconSizeMd   = 24;
+  static const double kIconSizeSm   = 16;
 
   // Screen
   static const double kScreenMargin = 20;

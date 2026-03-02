@@ -26,7 +26,7 @@ class PayoutRepository {
 
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
+      throw Exception('Réponse API invalide : champ data manquant');
     }
 
     return PayoutMethodModel.fromJson(data);
@@ -39,7 +39,7 @@ class PayoutRepository {
 
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
-      throw Exception('Invalid API response: missing data field');
+      throw Exception('Réponse API invalide : champ data manquant');
     }
 
     return PayoutMethodModel.fromJson(data);
