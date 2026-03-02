@@ -212,10 +212,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
   }
 
   Future<void> _markAllRead(NotificationProvider provider) async {
-    final unread = provider.notifications.where((n) => !n.isRead);
-    for (final n in unread) {
-      await provider.markAsRead(n.id);
-    }
+    await provider.markAllAsRead();
   }
 
   // ── Erreur ────────────────────────────────────────────────────────────────

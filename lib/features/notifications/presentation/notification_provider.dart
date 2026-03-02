@@ -65,6 +65,31 @@ class NotificationProvider extends ChangeNotifier {
 
   // ─── Mark as read ────────────────────────────────────────────────────────
 
+  /// Marque toutes les notifications non lues comme lues — une seule requête API.
+  Future<void> markAllAsRead() async {
+    if (_unreadCount == 0) return;
+
+    // Mise à jour optimiste
+    final now = DateTime.now();
+    _notifications = _notifications.map((n) {
+      return n.isRead ? n : n.copyWith(isRead: true, readAt: now);
+    }).toList();
+    final previousCount = _unreadCount;
+    _unreadCount = 0;
+    notifyListeners();
+
+    try {
+      await _repository.markAllAsRead();
+    } on Exception {
+      // Rollback en cas d'erreur réseau
+      _notifications = _notifications.map((n) {
+        return n.readAt == now ? n.copyWith(isRead: false, readAt: null) : n;
+      }).toList();
+      _unreadCount = previousCount;
+      notifyListeners();
+    }
+  }
+
   /// Marque une notification comme lue — mise à jour optimiste immédiate,
   /// puis appel API en arrière-plan.
   Future<void> markAsRead(int id) async {

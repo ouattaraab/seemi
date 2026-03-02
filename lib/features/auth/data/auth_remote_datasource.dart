@@ -194,6 +194,76 @@ class AuthRemoteDataSource {
       // Best-effort — ignorer silencieusement
     }
   }
+
+  /// Envoie un email de réinitialisation de mot de passe.
+  Future<void> forgotPassword({required String email}) async {
+    try {
+      await _dio.post('/auth/forgot-password', data: {'email': email});
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      final message = responseData is Map
+          ? responseData['message'] as String? ?? 'Erreur serveur'
+          : 'Erreur de connexion au serveur';
+      throw AuthApiException(message: message);
+    }
+  }
+
+  /// Réinitialise le mot de passe avec le token reçu par email.
+  Future<void> resetPassword({
+    required String email,
+    required String token,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    try {
+      await _dio.post('/auth/reset-password', data: {
+        'email':                 email,
+        'token':                 token,
+        'password':              password,
+        'password_confirmation': passwordConfirmation,
+      });
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      final message = responseData is Map
+          ? responseData['message'] as String? ?? 'Erreur serveur'
+          : 'Erreur de connexion au serveur';
+      throw AuthApiException(message: message);
+    }
+  }
+
+  /// Change le mot de passe de l'utilisateur connecté.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    try {
+      await _dio.put('/auth/password', data: {
+        'current_password':          currentPassword,
+        'new_password':              newPassword,
+        'new_password_confirmation': newPasswordConfirmation,
+      });
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      final message = responseData is Map
+          ? responseData['message'] as String? ?? 'Erreur serveur'
+          : 'Erreur de connexion au serveur';
+      throw AuthApiException(message: message);
+    }
+  }
+
+  /// Supprime le compte de l'utilisateur connecté (RGPD).
+  Future<void> deleteAccount() async {
+    try {
+      await _dio.delete('/auth/delete-account');
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      final message = responseData is Map
+          ? responseData['message'] as String? ?? 'Erreur serveur'
+          : 'Erreur de connexion au serveur';
+      throw AuthApiException(message: message);
+    }
+  }
 }
 
 /// Exception API d'authentification avec code d'erreur.

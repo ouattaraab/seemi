@@ -14,4 +14,8 @@ abstract final class RouteNames {
   static const String kRouteUpload = '/upload';
   static const String kRouteDesignShowcase = '/design-showcase';
   static const String kRouteContentViewer = '/c/:slug';
+  static const String kRouteForgotPassword = '/forgot-password';
+  static const String kRouteResetPassword = '/reset-password';
+  static const String kRouteChangePassword = '/change-password';
+  static const String kRouteNotificationPreferences = '/notification-preferences';
 }

@@ -136,6 +136,45 @@ class AuthRepository {
     await _dataSource.registerFcmToken(token);
   }
 
+  /// Envoie l'email de réinitialisation de mot de passe.
+  Future<void> forgotPassword({required String email}) async {
+    await _dataSource.forgotPassword(email: email);
+  }
+
+  /// Réinitialise le mot de passe.
+  Future<void> resetPassword({
+    required String email,
+    required String token,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    await _dataSource.resetPassword(
+      email:                 email,
+      token:                 token,
+      password:              password,
+      passwordConfirmation:  passwordConfirmation,
+    );
+  }
+
+  /// Change le mot de passe de l'utilisateur connecté.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    await _dataSource.changePassword(
+      currentPassword:          currentPassword,
+      newPassword:              newPassword,
+      newPasswordConfirmation:  newPasswordConfirmation,
+    );
+  }
+
+  /// Supprime le compte de l'utilisateur connecté (RGPD).
+  Future<void> deleteAccount() async {
+    await _dataSource.deleteAccount();
+    await _storageService.clearTokens();
+  }
+
   /// Met à jour le profil utilisateur.
   Future<UserModel> updateProfile({
     String? firstName,

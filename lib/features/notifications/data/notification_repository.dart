@@ -57,4 +57,14 @@ class NotificationRepository {
       throw NetworkException.fromDioException(e);
     }
   }
+
+  /// PUT /api/v1/notifications/read-all
+  Future<void> markAllAsRead() async {
+    try {
+      await _dio.put('/notifications/read-all');
+    } on DioException catch (e) {
+      if (e.response != null) throw ApiException.fromDioException(e);
+      throw NetworkException.fromDioException(e);
+    }
+  }
 }

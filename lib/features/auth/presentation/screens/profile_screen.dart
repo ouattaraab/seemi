@@ -7,6 +7,7 @@ import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
+import 'package:ppv_app/features/auth/presentation/auth_provider.dart';
 import 'package:ppv_app/features/auth/presentation/profile_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -63,14 +64,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             iconColor: AppColors.kPrimary,
                             iconBg: AppColors.kPrimary.withValues(alpha: 0.08),
                             label: 'Mot de passe & Sécurité',
-                            onTap: () {},
+                            onTap: () => context.push(RouteNames.kRouteChangePassword),
                           ),
                           _MenuItemData(
                             icon: Icons.notifications_outlined,
                             iconColor: AppColors.kAccentDark,
                             iconBg: AppColors.kAccent.withValues(alpha: 0.10),
                             label: 'Notifications',
-                            onTap: () {},
+                            onTap: () => context.push(RouteNames.kRouteNotificationPreferences),
                           ),
                         ]),
 
@@ -105,6 +106,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ]),
 
                         const SizedBox(height: 32),
+
+                        // ── Zone Danger ───────────────────────────────
+                        const _SectionLabel(label: 'ZONE DANGER'),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: AppSpacing.kButtonHeight,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _confirmDeleteAccount(context),
+                            icon: const Icon(Icons.delete_forever_rounded, size: 20),
+                            label: const Text('Supprimer mon compte'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.kError,
+                              backgroundColor: AppColors.kError.withValues(alpha: 0.04),
+                              side: BorderSide(color: AppColors.kError.withValues(alpha: 0.22)),
+                              shape: const StadiumBorder(),
+                              textStyle: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 15, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
 
                         // ── Déconnexion ───────────────────────────────
                         SizedBox(
@@ -339,6 +362,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (context.mounted) context.go(RouteNames.kRouteLogin);
   }
 
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _buildDeleteAccountDialog(ctx),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.deleteAccount();
+
+    if (!context.mounted) return;
+    if (success) {
+      context.go(RouteNames.kRouteLogin);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error ?? 'Impossible de supprimer le compte.'),
+          backgroundColor: AppColors.kError,
+        ),
+      );
+    }
+  }
+
   static String _toTitleCase(String s) {
     return s
         .split(' ')
@@ -472,6 +518,63 @@ class _MenuRow extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── _DeleteAccountDialog ─────────────────────────────────────────────────────
+
+Widget _buildDeleteAccountDialog(BuildContext parentCtx) {
+  final confirmCtrl = TextEditingController();
+  return StatefulBuilder(
+    builder: (ctx, setState) {
+      final ready = confirmCtrl.text == 'SUPPRIMER';
+      return AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2E),
+        title: const Text(
+          'Supprimer mon compte',
+          style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w800, color: AppColors.kTextPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Cette action est irréversible. Vos données seront anonymisées et votre compte désactivé.',
+              style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 14, color: AppColors.kTextSecondary, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Tapez SUPPRIMER pour confirmer :',
+              style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.kTextPrimary),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: confirmCtrl,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(color: AppColors.kTextPrimary, fontFamily: 'Plus Jakarta Sans', letterSpacing: 1.5),
+              decoration: InputDecoration(
+                hintText: 'SUPPRIMER',
+                hintStyle: const TextStyle(color: AppColors.kTextTertiary),
+                filled: true,
+                fillColor: AppColors.kBgElevated,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler', style: TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.kTextSecondary)),
+          ),
+          FilledButton(
+            onPressed: ready ? () => Navigator.pop(ctx, true) : null,
+            style: FilledButton.styleFrom(backgroundColor: AppColors.kError),
+            child: const Text('Supprimer', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w700)),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 // ─── _DashedCirclePainter ─────────────────────────────────────────────────────

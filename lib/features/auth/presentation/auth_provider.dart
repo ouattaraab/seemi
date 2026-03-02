@@ -149,4 +149,119 @@ class AuthProvider extends ChangeNotifier {
     _accountNotFound = false;
     _safeNotify();
   }
+
+  /// Envoie l'email de réinitialisation de mot de passe.
+  Future<bool> forgotPassword({required String email}) async {
+    _isLoading = true;
+    _error = null;
+    _safeNotify();
+
+    try {
+      await _repository.forgotPassword(email: email);
+      _isLoading = false;
+      _safeNotify();
+      return true;
+    } on AuthApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    } catch (_) {
+      _error = 'Erreur de connexion. Veuillez réessayer.';
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    }
+  }
+
+  /// Réinitialise le mot de passe avec le token reçu par email.
+  Future<bool> resetPassword({
+    required String email,
+    required String token,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    _safeNotify();
+
+    try {
+      await _repository.resetPassword(
+        email:                email,
+        token:                token,
+        password:             password,
+        passwordConfirmation: passwordConfirmation,
+      );
+      _isLoading = false;
+      _safeNotify();
+      return true;
+    } on AuthApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    } catch (_) {
+      _error = 'Erreur de connexion. Veuillez réessayer.';
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    }
+  }
+
+  /// Change le mot de passe de l'utilisateur connecté.
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    _safeNotify();
+
+    try {
+      await _repository.changePassword(
+        currentPassword:         currentPassword,
+        newPassword:             newPassword,
+        newPasswordConfirmation: newPasswordConfirmation,
+      );
+      _isLoading = false;
+      _safeNotify();
+      return true;
+    } on AuthApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    } catch (_) {
+      _error = 'Erreur de connexion. Veuillez réessayer.';
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    }
+  }
+
+  /// Supprime le compte de l'utilisateur connecté (RGPD).
+  Future<bool> deleteAccount() async {
+    _isLoading = true;
+    _error = null;
+    _safeNotify();
+
+    try {
+      await _repository.deleteAccount();
+      _user = null;
+      _isLoading = false;
+      _safeNotify();
+      return true;
+    } on AuthApiException catch (e) {
+      _error = e.message;
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    } catch (_) {
+      _error = 'Erreur de connexion. Veuillez réessayer.';
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    }
+  }
 }

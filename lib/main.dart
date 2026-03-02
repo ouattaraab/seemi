@@ -120,7 +120,7 @@ class _PpvAppState extends State<PpvApp> {
         title: 'SeeMi',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        themeMode: ThemeMode.light,
+        themeMode: ThemeMode.dark,
         routerConfig: _appRouter.router,
       ),
     );

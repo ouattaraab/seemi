@@ -3,10 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/storage/secure_storage_service.dart';
+import 'package:ppv_app/features/auth/presentation/screens/change_password_screen.dart';
+import 'package:ppv_app/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:ppv_app/features/auth/presentation/screens/kyc_screen.dart';
 import 'package:ppv_app/features/auth/presentation/screens/tos_screen.dart';
 import 'package:ppv_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:ppv_app/features/auth/presentation/screens/register_screen.dart';
+import 'package:ppv_app/features/notifications/presentation/notification_preferences_screen.dart';
 import 'package:ppv_app/features/design_showcase/presentation/screens/design_showcase_screen.dart';
 import 'package:ppv_app/features/content/data/public_content_repository.dart';
 import 'package:ppv_app/features/content/presentation/content_detail_provider.dart';
@@ -37,6 +40,8 @@ class AppRouter {
     RouteNames.kRouteLogin,
     RouteNames.kRouteRegister,
     RouteNames.kRouteDesignShowcase,
+    RouteNames.kRouteForgotPassword,
+    RouteNames.kRouteResetPassword,
   ];
 
   late final GoRouter router = GoRouter(
@@ -83,6 +88,18 @@ class AppRouter {
       GoRoute(
         path: RouteNames.kRouteDesignShowcase,
         builder: (context, state) => const DesignShowcaseScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteForgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteChangePassword,
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteNotificationPreferences,
+        builder: (context, state) => const NotificationPreferencesScreen(),
       ),
       // Deep linking — route publique (acheteurs sans compte)
       // ?reference= et ?trxref= sont les params Paystack de callback

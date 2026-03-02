@@ -66,6 +66,30 @@ class _MockAuthRepository implements AuthRepository {
   @override
   Future<void> registerFcmToken(String token) async =>
       throw UnimplementedError();
+
+  @override
+  Future<void> forgotPassword({required String email}) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String token,
+    required String password,
+    required String passwordConfirmation,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deleteAccount() async => throw UnimplementedError();
 }
 
 void main() {
@@ -109,10 +133,11 @@ void main() {
       );
     });
 
-    test('les routes définies incluent les 11 paths requis', () {
+    test('les routes définies incluent les 14 paths requis', () {
       final routes = appRouter.router.configuration.routes;
       // 7 from Story 2.1 + 1 KYC + 1 TOS + 1 PayoutMethod + 1 Upload (Story 3.1) + 1 DesignShowcase + 1 ContentViewer (Story 4.4)
-      expect(routes.length, 11);
+      // + 3 new routes: ForgotPassword, ChangePassword, NotificationPreferences
+      expect(routes.length, 14);
     });
 
     test('kRouteContentViewer est /c/:slug', () {
@@ -199,11 +224,12 @@ void main() {
   });
 
   group('AppRouter - Deep Linking (Story 4.4)', () {
-    test('route /c/:slug est enregistrée dans le routeur (11 routes au total)',
+    test('route /c/:slug est enregistrée dans le routeur (14 routes au total)',
         () {
       final appRouter = AppRouter();
-      // Le compte de 11 routes inclut la route deep link /c/:slug (Story 4.4)
-      expect(appRouter.router.configuration.routes.length, 11);
+      // Le compte de 14 routes inclut la route deep link /c/:slug (Story 4.4)
+      // + 3 nouvelles routes: ForgotPassword, ChangePassword, NotificationPreferences
+      expect(appRouter.router.configuration.routes.length, 14);
     });
 
     test('guard autorise les chemins /c/ sans token (startsWith)', () {

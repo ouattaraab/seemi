@@ -33,7 +33,7 @@ void main() {
     expect(materialApp.routerConfig, isNotNull);
     expect(materialApp.debugShowCheckedModeBanner, isFalse);
     expect(materialApp.title, equals('SeeMi'));
-    expect(materialApp.themeMode, ThemeMode.light);
+    expect(materialApp.themeMode, ThemeMode.dark);
     expect(materialApp.theme, isNotNull);
   });
 }
