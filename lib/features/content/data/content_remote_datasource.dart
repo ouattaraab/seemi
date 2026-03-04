@@ -78,10 +78,17 @@ class ContentRemoteDataSource {
     }
   }
 
-  /// Récupère la liste des acheteurs d'un contenu via GET /api/v1/contents/{id}/buyers.
-  Future<Map<String, dynamic>> getContentBuyers(int contentId) async {
+  /// Récupère la liste paginée des acheteurs d'un contenu.
+  /// [cursor] : curseur opaque renvoyé par la page précédente (null = première page).
+  Future<Map<String, dynamic>> getContentBuyers(
+    int contentId, {
+    String? cursor,
+  }) async {
     try {
-      final response = await _dio.get('/contents/$contentId/buyers');
+      final response = await _dio.get(
+        '/contents/$contentId/buyers',
+        queryParameters: cursor != null ? {'cursor': cursor} : null,
+      );
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       final responseData = e.response?.data;

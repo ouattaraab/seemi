@@ -253,13 +253,11 @@ class ContentProvider extends ChangeNotifier {
     }
   }
 
-  /// Récupère la liste des acheteurs d'un contenu (vue créateur).
-  Future<List<ContentBuyer>?> getContentBuyers(int contentId) async {
-    try {
-      return await _repository.getContentBuyers(contentId);
-    } catch (_) {
-      return null;
-    }
+  /// Récupère une page d'acheteurs d'un contenu (vue créateur).
+  /// Lève une exception en cas d'erreur (laissé au screen de gérer).
+  Future<({List<ContentBuyer> buyers, String? nextCursor, bool hasMore})>
+      getContentBuyers(int contentId, {String? cursor}) async {
+    return await _repository.getContentBuyers(contentId, cursor: cursor);
   }
 
   /// Reset l'état d'erreur.

@@ -106,9 +106,12 @@ class ContentRepository {
     );
   }
 
-  /// Récupère la liste des acheteurs d'un contenu.
-  Future<List<ContentBuyer>> getContentBuyers(int contentId) async {
-    final response = await _dataSource.getContentBuyers(contentId);
+  /// Récupère une page d'acheteurs d'un contenu.
+  /// Retourne un record Dart 3 : buyers, nextCursor, hasMore.
+  Future<({List<ContentBuyer> buyers, String? nextCursor, bool hasMore})>
+      getContentBuyers(int contentId, {String? cursor}) async {
+    final response =
+        await _dataSource.getContentBuyers(contentId, cursor: cursor);
 
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
@@ -120,10 +123,14 @@ class ContentRepository {
       throw Exception('Invalid API response: buyers is not a list');
     }
 
-    return rawList
-        .cast<Map<String, dynamic>>()
-        .map(ContentBuyer.fromJson)
-        .toList();
+    return (
+      buyers: rawList
+          .cast<Map<String, dynamic>>()
+          .map(ContentBuyer.fromJson)
+          .toList(),
+      nextCursor: data['next_cursor'] as String?,
+      hasMore: data['has_more'] as bool? ?? false,
+    );
   }
 
   /// Supprime un contenu (soft-delete côté API).

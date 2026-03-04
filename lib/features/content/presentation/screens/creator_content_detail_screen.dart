@@ -23,9 +23,12 @@ class CreatorContentDetailScreen extends StatefulWidget {
 
 class _CreatorContentDetailScreenState
     extends State<CreatorContentDetailScreen> {
-  List<ContentBuyer>? _buyers;
+  List<ContentBuyer> _buyers = [];
   bool _loadingBuyers = true;
+  bool _loadingMore = false;
   String? _buyersError;
+  String? _nextCursor;
+  bool _hasMore = false;
 
   @override
   void initState() {
@@ -37,14 +40,19 @@ class _CreatorContentDetailScreenState
     setState(() {
       _loadingBuyers = true;
       _buyersError = null;
+      _buyers = [];
+      _nextCursor = null;
+      _hasMore = false;
     });
     try {
-      final buyers = await context
+      final result = await context
           .read<ContentProvider>()
           .getContentBuyers(widget.content.id);
       if (!mounted) return;
       setState(() {
-        _buyers = buyers ?? [];
+        _buyers = result.buyers;
+        _nextCursor = result.nextCursor;
+        _hasMore = result.hasMore;
         _loadingBuyers = false;
       });
     } catch (e) {
@@ -53,6 +61,26 @@ class _CreatorContentDetailScreenState
         _buyersError = 'Impossible de charger les acheteurs.';
         _loadingBuyers = false;
       });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _nextCursor == null) return;
+    setState(() => _loadingMore = true);
+    try {
+      final result = await context
+          .read<ContentProvider>()
+          .getContentBuyers(widget.content.id, cursor: _nextCursor);
+      if (!mounted) return;
+      setState(() {
+        _buyers = [..._buyers, ...result.buyers];
+        _nextCursor = result.nextCursor;
+        _hasMore = result.hasMore;
+        _loadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
     }
   }
 
@@ -240,6 +268,7 @@ class _CreatorContentDetailScreenState
   // ─── Buyers section ────────────────────────────────────────────────────────
 
   Widget _buildBuyersSection() {
+    final count = widget.content.purchaseCount;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -247,25 +276,22 @@ class _CreatorContentDetailScreenState
           children: [
             const Text('Acheteurs', style: AppTextStyles.kTitleLarge),
             const SizedBox(width: 8),
-            if (_buyers != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.kPrimary.withValues(alpha: 0.10),
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.kRadiusPill),
-                ),
-                child: Text(
-                  '${_buyers!.length}',
-                  style: const TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.kPrimary,
-                  ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.kPrimary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.kPrimary,
                 ),
               ),
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -278,9 +304,9 @@ class _CreatorContentDetailScreenState
           )
         else if (_buyersError != null)
           _BuyersError(error: _buyersError!, onRetry: _loadBuyers)
-        else if (_buyers == null || _buyers!.isEmpty)
+        else if (_buyers.isEmpty)
           _BuyersEmpty()
-        else
+        else ...[
           Container(
             decoration: BoxDecoration(
               color: AppColors.kBgSurface,
@@ -296,7 +322,7 @@ class _CreatorContentDetailScreenState
             ),
             child: Column(
               children: [
-                for (var i = 0; i < _buyers!.length; i++) ...[
+                for (var i = 0; i < _buyers.length; i++) ...[
                   if (i > 0)
                     Divider(
                       height: 1,
@@ -304,11 +330,47 @@ class _CreatorContentDetailScreenState
                       indent: 20,
                       endIndent: 20,
                     ),
-                  _BuyerRow(buyer: _buyers![i]),
+                  _BuyerRow(buyer: _buyers[i]),
                 ],
               ],
             ),
           ),
+          if (_hasMore) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _loadingMore ? null : _loadMore,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.kPrimary,
+                  side: const BorderSide(color: AppColors.kBorder),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.kRadiusLg),
+                  ),
+                ),
+                child: _loadingMore
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.kPrimary,
+                        ),
+                      )
+                    : Text(
+                        'Voir plus (${count - _buyers.length} restants)',
+                        style: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ],
       ],
     );
   }
