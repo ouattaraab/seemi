@@ -84,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: IndexedStack(
         index: _stackIndex,
         children: [
-          _visitedTabs.contains(0) ? const HomeDashboardTab() : const SizedBox.shrink(), // stack 0 → nav 0
+          _visitedTabs.contains(0) ? HomeDashboardTab(onNavigateToProfile: () => _navigateToTab(3)) : const SizedBox.shrink(), // stack 0 → nav 0
           _visitedTabs.contains(1) ? const WalletScreen()     : const SizedBox.shrink(), // stack 1 → nav 2
           _visitedTabs.contains(2) ? const ProfileScreen()    : const SizedBox.shrink(), // stack 2 → nav 3
         ],
@@ -151,10 +151,10 @@ class _BottomNav extends StatelessWidget {
                         height: AppSpacing.kIconSizeXl,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.kPrimary,
+                          color: AppColors.kPrimaryDark,
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.kPrimary.withValues(alpha: 0.35),
+                              color: AppColors.kPrimaryDark.withValues(alpha: 0.35),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),

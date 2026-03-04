@@ -26,6 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _dobCtrl             = TextEditingController();
   final _passwordCtrl        = TextEditingController();
   final _passwordConfirmCtrl = TextEditingController();
+  final _referralCodeCtrl    = TextEditingController();
 
   bool _obscurePassword        = true;
   bool _obscurePasswordConfirm = true;
@@ -40,6 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _dobCtrl.dispose();
     _passwordCtrl.dispose();
     _passwordConfirmCtrl.dispose();
+    _referralCodeCtrl.dispose();
     super.dispose();
   }
 
@@ -89,6 +91,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       dateOfBirth:          _dobCtrl.text.trim(),
       password:             _passwordCtrl.text,
       passwordConfirmation: _passwordConfirmCtrl.text,
+      referralCode:         _referralCodeCtrl.text.trim().isEmpty ? null : _referralCodeCtrl.text.trim().toUpperCase(),
     );
 
     if (!mounted) return;
@@ -257,6 +260,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                           ),
 
+                          const SizedBox(height: AppSpacing.kSpaceXl),
+
+                          // ── Section Parrainage ──
+                          const _SectionLabel('Parrainage'),
+                          const SizedBox(height: 12),
+                          _PillField(
+                            controller: _referralCodeCtrl,
+                            hintText: 'Code de parrainage (facultatif)',
+                            prefixIcon: Icons.card_giftcard_outlined,
+                            onChanged: (_) => authProvider.clearError(),
+                          ),
+
                           const SizedBox(height: AppSpacing.kSpaceLg),
 
                           // ── CGU ──
@@ -375,7 +390,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: AppColors.kPrimary.withValues(alpha: 0.08),
                 ),
               ),
-              const SeeMiLogo(size: 40),
+              const SeeMiLogo(size: 45),
             ],
           ),
         ),

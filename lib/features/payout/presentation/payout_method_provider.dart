@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:ppv_app/core/network/api_exceptions.dart';
 import 'package:ppv_app/features/payout/data/payout_repository.dart';
 import 'package:ppv_app/features/payout/domain/payout_constants.dart';
 import 'package:ppv_app/features/payout/domain/payout_method.dart';
@@ -63,7 +64,9 @@ class PayoutMethodProvider extends ChangeNotifier {
       _isLoading = false;
       _safeNotify();
     } catch (e) {
-      _error = e.toString().replaceFirst('Exception: ', '');
+      _error = e is ApiException ? e.message
+               : e is NetworkException ? e.message
+               : 'Une erreur inattendue est survenue.';
       _isLoading = false;
       _safeNotify();
     }
@@ -96,7 +99,9 @@ class PayoutMethodProvider extends ChangeNotifier {
       _safeNotify();
       return true;
     } catch (e) {
-      _error = e.toString().replaceFirst('Exception: ', '');
+      _error = e is ApiException ? e.message
+               : e is NetworkException ? e.message
+               : 'Une erreur inattendue est survenue.';
       _isLoading = false;
       _safeNotify();
       return false;

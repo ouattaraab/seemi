@@ -15,12 +15,18 @@ import 'package:ppv_app/features/design_showcase/presentation/screens/design_sho
 import 'package:ppv_app/features/content/data/public_content_repository.dart';
 import 'package:ppv_app/features/content/presentation/content_detail_provider.dart';
 import 'package:ppv_app/features/content/presentation/screens/content_detail_screen.dart';
+import 'package:ppv_app/features/content/domain/content.dart';
+import 'package:ppv_app/features/content/presentation/screens/creator_content_detail_screen.dart';
+import 'package:ppv_app/features/content/presentation/screens/my_contents_screen.dart';
 import 'package:ppv_app/features/content/presentation/screens/upload_screen.dart';
 import 'package:ppv_app/features/home/presentation/screens/home_screen.dart';
 import 'package:ppv_app/features/payment/data/payment_repository.dart';
 import 'package:ppv_app/features/payment/presentation/payment_provider.dart';
 import 'package:ppv_app/features/payout/presentation/screens/payout_method_screen.dart';
 import 'package:ppv_app/features/onboarding/presentation/screens/onboarding_screen.dart';
+import 'package:ppv_app/features/app_update/presentation/screens/force_update_screen.dart';
+import 'package:ppv_app/features/maintenance/presentation/screens/maintenance_screen.dart';
+import 'package:ppv_app/features/referral/presentation/screens/referral_screen.dart';
 import 'package:ppv_app/features/splash/presentation/screens/splash_screen.dart';
 
 /// Configuration GoRouter PPV — routes déclaratives + guard d'auth.
@@ -43,6 +49,8 @@ class AppRouter {
     RouteNames.kRouteDesignShowcase,
     RouteNames.kRouteForgotPassword,
     RouteNames.kRouteResetPassword,
+    RouteNames.kRouteMaintenance,
+    RouteNames.kRouteForceUpdate,
   ];
 
   late final GoRouter router = GoRouter(
@@ -110,6 +118,17 @@ class AppRouter {
         path: RouteNames.kRouteNotificationPreferences,
         builder: (context, state) => const NotificationPreferencesScreen(),
       ),
+      GoRoute(
+        path: RouteNames.kRouteMyContents,
+        builder: (context, state) => const MyContentsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteCreatorContentDetail,
+        builder: (context, state) {
+          final content = state.extra as Content;
+          return CreatorContentDetailScreen(content: content);
+        },
+      ),
       // Deep linking — route publique (acheteurs sans compte)
       // ?reference= et ?trxref= sont les params Paystack de callback
       GoRoute(
@@ -136,6 +155,20 @@ class AppRouter {
             child: ContentDetailScreen(paymentReference: paymentRef),
           );
         },
+      ),
+      GoRoute(
+        path: RouteNames.kRouteReferral,
+        builder: (context, state) => const ReferralScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteMaintenance,
+        builder: (context, state) =>
+            MaintenanceScreen(data: state.extra as Map<String, dynamic>),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteForceUpdate,
+        builder: (context, state) =>
+            ForceUpdateScreen(data: state.extra as Map<String, dynamic>),
       ),
     ],
   );

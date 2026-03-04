@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:ppv_app/core/network/api_exceptions.dart';
 import 'package:ppv_app/features/auth/data/auth_repository.dart';
 import 'package:ppv_app/features/auth/domain/tos_acceptance.dart';
 
@@ -46,7 +47,9 @@ class TosProvider extends ChangeNotifier {
       _safeNotify();
       return true;
     } catch (e) {
-      _error = e.toString().replaceFirst('Exception: ', '');
+      _error = e is ApiException ? e.message
+               : e is NetworkException ? e.message
+               : 'Une erreur inattendue est survenue.';
       _isLoading = false;
       _safeNotify();
       return false;

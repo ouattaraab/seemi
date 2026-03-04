@@ -18,6 +18,10 @@ class PaymentProvider extends ChangeNotifier {
   String? _originalUrl;
   bool _paymentFailed = false;
 
+  // Référence conservée après initiation pour permettre la vérification
+  // manuelle ou automatique au retour du navigateur externe.
+  String? _pendingReference;
+
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get authorizationUrl => _authorizationUrl;
@@ -27,6 +31,13 @@ class PaymentProvider extends ChangeNotifier {
   bool get isPaid => _isPaid;
   String? get originalUrl => _originalUrl;
   bool get paymentFailed => _paymentFailed;
+
+  /// Vrai si un paiement a été initié mais pas encore confirmé.
+  /// Permet à l'UI d'afficher un bouton "Vérifier mon paiement".
+  bool get hasPendingPayment =>
+      _pendingReference != null && !_isPaid && !_isCheckingReveal;
+
+  String? get pendingReference => _pendingReference;
 
   PaymentProvider({required PaymentRepository repository})
       : _repository = repository;
@@ -48,6 +59,9 @@ class PaymentProvider extends ChangeNotifier {
         phone: phone,
       );
       _authorizationUrl = result.authorizationUrl;
+      // Conserver la référence pour permettre la vérification au retour
+      // de l'app après paiement dans le navigateur externe.
+      _pendingReference = result.reference;
     } on ApiException catch (e) {
       if (e.isNotFound) {
         _error = 'Ce contenu n\'existe plus ou n\'est plus disponible.';
@@ -70,7 +84,8 @@ class PaymentProvider extends ChangeNotifier {
 
   /// Vérifie le statut de paiement par polling et déclenche le reveal.
   ///
-  /// Interroge l'API toutes les 2s, max 8 tentatives (≈ 16s).
+  /// Interroge l'API toutes les 3s, max 20 tentatives (≈ 60s).
+  /// Couvre les délais de confirmation Mobile Money (asynchrone côté opérateur).
   /// Met à jour [isPaid] et [originalUrl] dès confirmation.
   Future<void> checkPaymentAndReveal({
     required String slug,
@@ -82,12 +97,12 @@ class PaymentProvider extends ChangeNotifier {
     _paymentFailed = false;
     notifyListeners();
 
-    const maxAttempts = 8;
-    const pollInterval = Duration(seconds: 2);
+    const maxAttempts = 20;
+    const pollInterval = Duration(seconds: 3);
     int attempts = 0;
 
     // Délai initial : laisser le webhook Paystack arriver
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 2));
 
     while (attempts < maxAttempts) {
       try {
@@ -99,6 +114,7 @@ class PaymentProvider extends ChangeNotifier {
           _isPaid = true;
           _originalUrl = result.originalUrl;
           _isCheckingReveal = false;
+          _pendingReference = null; // paiement confirmé, plus de retour nécessaire
           notifyListeners();
           return;
         }
@@ -106,6 +122,7 @@ class PaymentProvider extends ChangeNotifier {
         if (result.paymentStatus == 'failed') {
           _paymentFailed = true;
           _isCheckingReveal = false;
+          _pendingReference = null;
           notifyListeners();
           return;
         }
@@ -118,6 +135,8 @@ class PaymentProvider extends ChangeNotifier {
       }
     }
 
+    // Polling épuisé sans confirmation : conserver _pendingReference pour
+    // permettre à l'utilisateur de réessayer manuellement.
     _isCheckingReveal = false;
     notifyListeners();
   }
@@ -131,6 +150,7 @@ class PaymentProvider extends ChangeNotifier {
     _isPaid = false;
     _originalUrl = null;
     _paymentFailed = false;
+    _pendingReference = null;
     notifyListeners();
   }
 }

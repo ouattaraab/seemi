@@ -79,7 +79,7 @@ abstract final class AppTheme {
 
   static final _elevatedButtonTheme = ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
-      backgroundColor: AppColors.kPrimary,
+      backgroundColor: AppColors.kPrimaryDark,
       foregroundColor: Colors.white,
       minimumSize: const Size.fromHeight(AppSpacing.kButtonHeight),
       shape: RoundedRectangleBorder(
@@ -96,7 +96,7 @@ abstract final class AppTheme {
 
   static final _filledButtonTheme = FilledButtonThemeData(
     style: FilledButton.styleFrom(
-      backgroundColor: AppColors.kPrimary,
+      backgroundColor: AppColors.kPrimaryDark,
       foregroundColor: Colors.white,
       minimumSize: const Size.fromHeight(AppSpacing.kButtonHeight),
       shape: RoundedRectangleBorder(
@@ -179,7 +179,7 @@ abstract final class AppTheme {
   );
 
   static const _fabTheme = FloatingActionButtonThemeData(
-    backgroundColor: AppColors.kPrimary,
+    backgroundColor: AppColors.kPrimaryDark,
     foregroundColor: Colors.white,
     elevation: 4,
   );

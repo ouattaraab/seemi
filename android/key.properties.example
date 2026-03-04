@@ -1,0 +1,9 @@
+# Modèle de fichier key.properties pour la signature release Android.
+# Copier ce fichier en key.properties et renseigner les valeurs réelles.
+# key.properties est exclu du git (.gitignore) — ne jamais commiter les valeurs réelles.
+#
+# En CI/CD (GitHub Actions, Bitrise, etc.) : injecter via des secrets chiffrés.
+storeFile=../nom-du-keystore.keystore
+storePassword=MOT_DE_PASSE_KEYSTORE
+keyAlias=ALIAS_CLE
+keyPassword=MOT_DE_PASSE_CLE

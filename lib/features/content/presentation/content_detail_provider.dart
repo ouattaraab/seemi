@@ -29,7 +29,7 @@ class ContentDetailProvider extends ChangeNotifier {
       _content = data;
     } on ApiException catch (e) {
       _error = e.isNotFound
-          ? 'Ce contenu est introuvable ou n\'est plus disponible.'
+          ? 'Ce contenu n\'est plus disponible.'
           : 'Une erreur est survenue. Réessayez.';
     } catch (_) {
       _error = 'Impossible de charger le contenu. Vérifiez votre connexion.';

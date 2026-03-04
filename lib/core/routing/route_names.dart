@@ -18,4 +18,13 @@ abstract final class RouteNames {
   static const String kRouteResetPassword = '/reset-password';
   static const String kRouteChangePassword = '/change-password';
   static const String kRouteNotificationPreferences = '/notification-preferences';
+  static const String kRouteMyContents = '/my-contents';
+  static const String kRouteCreatorContentDetail = '/creator/contents/:id';
+
+  /// Helper pour construire l'URL de détail créateur avec un id concret.
+  static String creatorContentDetail(int id) => '/creator/contents/$id';
+
+  static const String kRouteReferral = '/referral';
+  static const String kRouteMaintenance = '/maintenance';
+  static const String kRouteForceUpdate = '/update';
 }

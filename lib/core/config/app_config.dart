@@ -18,6 +18,12 @@ abstract final class AppConfig {
   static bool get isDev => environment == 'dev';
   static bool get isProd => environment == 'prod';
 
+  // ─── URL de base du site web SeeMi (pages légales, deep links) ───
+  static const String webBaseUrl = String.fromEnvironment(
+    'WEB_BASE_URL',
+    defaultValue: 'https://seemi.click',
+  );
+
   // ─── CGU / TOS ───
   static const String currentTosVersion = '1.0';
 
@@ -50,6 +56,12 @@ abstract final class AppConfig {
 
   static const String pinnedCertSha256Backup = String.fromEnvironment(
     'PINNED_CERT_SHA256_BACKUP',
+    defaultValue: '',
+  );
+
+  // ─── Sentry (SECU-11 — monitoring erreurs + crashes) ───
+  static const String sentryDsn = String.fromEnvironment(
+    'SENTRY_DSN',
     defaultValue: '',
   );
 

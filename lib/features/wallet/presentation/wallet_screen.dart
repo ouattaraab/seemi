@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
@@ -105,11 +107,18 @@ class _WalletScreenState extends State<WalletScreen> {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
           decoration: BoxDecoration(
-            color: AppColors.kPrimary,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF0D4E9B),
+                AppColors.kPrimaryDark,
+              ],
+            ),
             borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
             boxShadow: [
               BoxShadow(
-                color: AppColors.kPrimary.withValues(alpha: 0.30),
+                color: AppColors.kPrimaryDark.withValues(alpha: 0.35),
                 blurRadius: 28,
                 offset: const Offset(0, 10),
               ),
@@ -293,7 +302,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   const Text('Méthodes de retrait',
                       style: AppTextStyles.kTitleLarge),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () => context.push(RouteNames.kRoutePayoutMethod),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: Size.zero,
@@ -634,7 +643,7 @@ class _AddPayoutCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
-          onTap: () {},
+          onTap: () => context.push(RouteNames.kRoutePayoutMethod),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(

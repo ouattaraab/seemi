@@ -57,16 +57,31 @@ class ContentRemoteDataSource {
     }
   }
 
-  /// Met à jour le prix d'un contenu via PUT /api/v1/contents/{id}.
+  /// Met à jour le prix (et optionnellement le mode vue unique) via PUT /api/v1/contents/{id}.
   Future<Map<String, dynamic>> updateContentPrice(
     int contentId,
-    int priceInCentimes,
-  ) async {
+    int priceInCentimes, {
+    bool viewOnce = false,
+  }) async {
     try {
       final response = await _dio.put(
         '/contents/$contentId',
-        data: {'price': priceInCentimes},
+        data: {'price': priceInCentimes, 'view_once': viewOnce},
       );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      final message = responseData is Map
+          ? responseData['message'] as String? ?? 'Erreur serveur'
+          : 'Erreur de connexion au serveur';
+      throw Exception(message);
+    }
+  }
+
+  /// Récupère la liste des acheteurs d'un contenu via GET /api/v1/contents/{id}/buyers.
+  Future<Map<String, dynamic>> getContentBuyers(int contentId) async {
+    try {
+      final response = await _dio.get('/contents/$contentId/buyers');
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       final responseData = e.response?.data;
@@ -99,6 +114,19 @@ class ContentRemoteDataSource {
         queryParameters: cursor != null ? {'cursor': cursor} : null,
       );
       return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      final message = responseData is Map
+          ? responseData['message'] as String? ?? 'Erreur serveur'
+          : 'Erreur de connexion au serveur';
+      throw Exception(message);
+    }
+  }
+
+  /// Supprime un contenu via DELETE /api/v1/contents/{id}.
+  Future<void> deleteContent(int contentId) async {
+    try {
+      await _dio.delete('/contents/$contentId');
     } on DioException catch (e) {
       final responseData = e.response?.data;
       final message = responseData is Map

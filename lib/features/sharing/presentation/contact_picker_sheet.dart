@@ -28,7 +28,7 @@ class _ContactPickerSheetState extends State<ContactPickerSheet> {
     AppColors.kPrimary,
     AppColors.kAccent,
     AppColors.kSuccess,
-    AppColors.kAccentViolet,
+    AppColors.kPrimaryDark,
     AppColors.kInfo,
   ];
 

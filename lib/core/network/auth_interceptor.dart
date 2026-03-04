@@ -20,6 +20,7 @@ class AuthInterceptor extends QueuedInterceptor {
   final Dio _dio;
   final SecureStorageService _storageService;
   final void Function()? _onSessionExpired;
+  final void Function(Map<String, dynamic>)? _onMaintenance;
   Completer<void>? _refreshCompleter;
 
   // Clé extra pour marquer les requêtes de retry et prévenir les boucles infinies.
@@ -29,9 +30,11 @@ class AuthInterceptor extends QueuedInterceptor {
     required Dio dio,
     required SecureStorageService storageService,
     void Function()? onSessionExpired,
+    void Function(Map<String, dynamic>)? onMaintenance,
   })  : _dio = dio,
         _storageService = storageService,
-        _onSessionExpired = onSessionExpired;
+        _onSessionExpired = onSessionExpired,
+        _onMaintenance = onMaintenance;
 
   @override
   Future<void> onRequest(
@@ -52,6 +55,12 @@ class AuthInterceptor extends QueuedInterceptor {
   ) async {
     // M5 — Ne pas retenter si c'est déjà un retry (prévient la boucle infinie)
     final isRetry = err.requestOptions.extra[_kAuthRetry] == true;
+
+    if (err.response?.statusCode == 503) {
+      final data = err.response?.data as Map<String, dynamic>? ?? {};
+      _onMaintenance?.call(data);
+      return handler.reject(err);
+    }
 
     if (err.response?.statusCode == 401 && !isRetry) {
       try {

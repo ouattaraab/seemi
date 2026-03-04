@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:ppv_app/core/config/app_config.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
@@ -24,6 +28,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<ProfileProvider>().loadProfile();
     });
+  }
+
+  Future<void> _pickAndUploadAvatar(ProfileProvider provider) async {
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 85,
+    );
+    if (image == null || !mounted) return;
+
+    // Éviction du cache avant l'upload pour forcer le rechargement de l'URL.
+    final oldAvatarUrl = provider.user?.avatarUrl;
+    if (oldAvatarUrl != null) {
+      await NetworkImage(oldAvatarUrl).evict();
+    }
+
+    final success = await provider.updateProfile(avatar: File(image.path));
+
+    // Éviction également de la nouvelle URL si elle est identique (serveur qui écrase le fichier).
+    final newAvatarUrl = provider.user?.avatarUrl;
+    if (newAvatarUrl != null && newAvatarUrl != oldAvatarUrl) {
+      await NetworkImage(newAvatarUrl).evict();
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success
+            ? 'Photo de profil mise à jour.'
+            : provider.error ?? 'Erreur lors de la mise à jour.'),
+        backgroundColor:
+            success ? AppColors.kSuccess : AppColors.kError,
+      ),
+    );
   }
 
   @override
@@ -77,6 +116,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         const SizedBox(height: 32),
 
+                        // ── Créateur ──────────────────────────────────
+                        const _SectionLabel(label: 'CRÉATEUR'),
+                        const SizedBox(height: 12),
+                        _MenuCard(items: [
+                          if (user?.kycStatus == 'none' || user?.kycStatus == 'rejected')
+                            _MenuItemData(
+                              icon: user?.kycStatus == 'rejected'
+                                  ? Icons.refresh_rounded
+                                  : Icons.verified_user_outlined,
+                              iconColor: user?.kycStatus == 'rejected'
+                                  ? AppColors.kError
+                                  : AppColors.kPrimary,
+                              iconBg: user?.kycStatus == 'rejected'
+                                  ? AppColors.kError.withValues(alpha: 0.08)
+                                  : AppColors.kPrimary.withValues(alpha: 0.08),
+                              label: user?.kycStatus == 'rejected'
+                                  ? 'Resoumettre ma vérification'
+                                  : 'Vérifier mon compte',
+                              onTap: () => context.push(RouteNames.kRouteKyc),
+                            ),
+                          _MenuItemData(
+                            icon: Icons.card_giftcard_rounded,
+                            iconColor: AppColors.kAccentDark,
+                            iconBg: AppColors.kAccent.withValues(alpha: 0.10),
+                            label: 'Parrainage',
+                            onTap: () => context.push(RouteNames.kRouteReferral),
+                          ),
+                        ]),
+
+                        const SizedBox(height: 32),
+
                         // ── Support & Légal ───────────────────────────
                         const _SectionLabel(label: 'SUPPORT & LÉGAL'),
                         const SizedBox(height: 12),
@@ -86,22 +156,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             iconColor: AppColors.kSuccess,
                             iconBg:
                                 AppColors.kSuccess.withValues(alpha: 0.08),
-                            label: 'Contacter le support',
-                            onTap: () {},
+                            label: 'Contactez-nous',
+                            onTap: () => _showContactSheet(context),
                           ),
                           _MenuItemData(
                             icon: Icons.description_outlined,
                             iconColor: AppColors.kTextSecondary,
                             iconBg: AppColors.kBgElevated,
                             label: 'Conditions générales',
-                            onTap: () {},
+                            onTap: () => _openWebPage(
+                              context,
+                              '${AppConfig.webBaseUrl}/cgu',
+                            ),
                           ),
                           _MenuItemData(
                             icon: Icons.shield_outlined,
                             iconColor: AppColors.kTextSecondary,
                             iconBg: AppColors.kBgElevated,
                             label: 'Politique de confidentialité',
-                            onTap: () {},
+                            onTap: () => _openWebPage(
+                              context,
+                              '${AppConfig.webBaseUrl}/confidentialite',
+                            ),
                           ),
                         ]),
 
@@ -230,7 +306,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: ClipOval(
                       child: user?.avatarUrl != null
                           ? Image.network(
-                              user!.avatarUrl!,
+                              // Cache-buster : force un rechargement si l'URL change
+                              // même si le serveur écrase le même fichier.
+                              '${user!.avatarUrl}?v=${user.avatarUrl.hashCode}',
                               fit: BoxFit.cover,
                               errorBuilder: (ctx, e, st) =>
                                   _avatarFallback(displayName),
@@ -244,18 +322,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Positioned(
                 bottom: 0,
                 right: 0,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.kAccent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.kBgSurface, width: 3),
-                  ),
-                  child: const Icon(
-                    Icons.edit_rounded,
-                    color: Colors.white,
-                    size: 14,
+                child: GestureDetector(
+                  onTap: () => _pickAndUploadAvatar(provider),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.kAccent,
+                      shape: BoxShape.circle,
+                      border:
+                          Border.all(color: AppColors.kBgSurface, width: 3),
+                    ),
+                    child: const Icon(
+                      Icons.edit_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
                   ),
                 ),
               ),
@@ -310,7 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _avatarFallback(String name) {
     return Container(
-      color: AppColors.kPrimary,
+      color: AppColors.kPrimaryDark,
       alignment: Alignment.center,
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : 'U',
@@ -354,6 +436,267 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _openWebPage(BuildContext context, String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Impossible d\'ouvrir la page.'),
+          backgroundColor: AppColors.kError,
+        ),
+      );
+    }
+  }
+
+  void _showContactSheet(BuildContext context) {
+    final messageController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        bool isSending = false;
+        bool sent = false;
+        return StatefulBuilder(
+          builder: (innerCtx, setState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: AppColors.kBgSurface,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(AppSpacing.kRadiusXl),
+                ),
+              ),
+              padding: EdgeInsets.only(
+                left: 24,
+                right: 24,
+                top: 12,
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 28,
+              ),
+              child: sent
+                  ? _buildContactSentState()
+                  : Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Handle
+                          Center(
+                            child: Container(
+                              width: 36,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: AppColors.kBorder,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'Contactez-nous',
+                            style: TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.kTextPrimary,
+                              letterSpacing: -0.3,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Laissez-nous un message, nous vous répondrons dès que possible.',
+                            style: TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              fontSize: 13,
+                              color: AppColors.kTextSecondary,
+                              height: 1.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          TextFormField(
+                            controller: messageController,
+                            maxLines: 5,
+                            minLines: 4,
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Veuillez saisir un message.';
+                              }
+                              if (v.trim().length < 10) {
+                                return 'Le message est trop court.';
+                              }
+                              return null;
+                            },
+                            style: const TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              fontSize: 14,
+                              color: AppColors.kTextPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Décrivez votre problème ou question…',
+                              hintStyle: const TextStyle(
+                                fontFamily: 'Plus Jakarta Sans',
+                                fontSize: 14,
+                                color: AppColors.kTextTertiary,
+                              ),
+                              filled: true,
+                              fillColor: AppColors.kBgElevated,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.kRadiusLg),
+                                borderSide:
+                                    const BorderSide(color: AppColors.kBorder),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.kRadiusLg),
+                                borderSide:
+                                    const BorderSide(color: AppColors.kBorder),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.kRadiusLg),
+                                borderSide: const BorderSide(
+                                    color: AppColors.kPrimary, width: 1.5),
+                              ),
+                              errorBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.kRadiusLg),
+                                borderSide: const BorderSide(
+                                    color: AppColors.kError, width: 1.5),
+                              ),
+                              focusedErrorBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.kRadiusLg),
+                                borderSide: const BorderSide(
+                                    color: AppColors.kError, width: 1.5),
+                              ),
+                              contentPadding: const EdgeInsets.all(16),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            height: AppSpacing.kButtonHeight,
+                            child: ElevatedButton.icon(
+                              onPressed: isSending
+                                  ? null
+                                  : () async {
+                                      if (!formKey.currentState!.validate()) {
+                                        return;
+                                      }
+                                      setState(() => isSending = true);
+                                      // Envoie via mailto — remplacer par un appel API
+                                      // POST /support si un endpoint est disponible.
+                                      final body = Uri.encodeComponent(
+                                        messageController.text.trim(),
+                                      );
+                                      final uri = Uri.parse(
+                                        'mailto:support@seemi.click'
+                                        '?subject=Message%20support%20SeeMi'
+                                        '&body=$body',
+                                      );
+                                      await launchUrl(uri);
+                                      setState(() {
+                                        isSending = false;
+                                        sent = true;
+                                      });
+                                    },
+                              icon: isSending
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.send_rounded, size: 18),
+                              label: Text(
+                                isSending ? 'Envoi…' : 'Envoyer le message',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.kPrimary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: const StadiumBorder(),
+                                textStyle: const TextStyle(
+                                  fontFamily: 'Plus Jakarta Sans',
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() => messageController.dispose());
+  }
+
+  Widget _buildContactSentState() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 8),
+        Center(
+          child: Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.kBorder,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 40),
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.kSuccess.withValues(alpha: 0.10),
+          ),
+          child: const Icon(
+            Icons.check_circle_outline_rounded,
+            color: AppColors.kSuccess,
+            size: 36,
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'Message envoyé !',
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.kTextPrimary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Notre équipe vous répondra dans les plus brefs délais.',
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 14,
+            color: AppColors.kTextSecondary,
+            height: 1.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+      ],
     );
   }
 

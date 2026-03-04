@@ -1,38 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Configuration de sécurité réseau Android — HIGH-08.
+    Configuration de sécurité réseau Android — HIGH-08 / SECU-04.
 
     Base (release / production) :
     - HTTPS uniquement (cleartextTrafficPermitted="false")
     - Seules les AC SYSTÈME sont de confiance — les AC installées par l'utilisateur
       (ex : proxies MITM comme Charles, Burp Suite) ne sont PAS acceptées.
-    - Cette config couvre Android 4.2+ ; sur API 24+, les AC utilisateur sont déjà
-      exclues par défaut, mais la déclaration explicite protège aussi les versions antérieures.
+
+    Certificate Pinning SPKI (SECU-04) :
+    - Pinning sur la CLÉ PUBLIQUE (SPKI), pas sur le certificat DER.
+      La clé publique survit aux renouvellements Let's Encrypt si le serveur
+      conserve la même private key → pas de push d'app obligatoire à chaque renouvellement.
+
+    Renouveler les hashs (commandes) :
+      # Primaire — clé publique actuelle de seemi.click
+      openssl s_client -connect seemi.click:443 </dev/null 2>/dev/null \
+        | openssl x509 -pubkey -noout \
+        | openssl pkey -pubin -outform der \
+        | openssl dgst -sha256 -binary | base64
+
+      # Backup — stockez la clé privée de secours dans un vault sécurisé.
+      # Fichier backup : /infra/tls/seemi_backup_key.pem (ne jamais committer)
+      openssl rsa -in seemi_backup_key.pem -pubout -outform der \
+        | openssl dgst -sha256 -binary | base64
+
+    Expiration :
+    - La date 2027-06-01 laisse 15 mois pour renouveler.
+    - Android désactive silencieusement le pinning après la date (fail open).
+    - Ajouter une alerte calendar 2027-03-01 pour renouveler à temps.
 
     Exception développement (10.0.2.2 / localhost) :
-    - HTTP autorisé vers l'émulateur Android pour le dev local.
-    - AC utilisateur acceptées pour permettre l'inspection réseau en dev.
-    - Ce bloc n'est actif qu'en debug (le manifest debug écrase le main manifest).
-
-    Pour ajouter du certificate pinning une fois le domaine prod connu :
-    <domain-config>
-        <domain includeSubdomains="true">api.votredomaine.com</domain>
-        <pin-set expiration="2026-12-31">
-            <pin digest="SHA-256">base64_du_sha256_certificat_primaire==</pin>
-            <pin digest="SHA-256">base64_du_sha256_certificat_backup==</pin>
-        </pin-set>
-    </domain-config>
-
-    Documentation : https://developer.android.com/training/articles/security-config
+    - HTTP autorisé + AC utilisateur acceptées pour l'inspection réseau en dev.
 -->
 <network-security-config>
 
-    <!-- Règle de base : HTTPS uniquement, AC système uniquement (bloque les AC utilisateur) -->
+    <!-- Règle de base : HTTPS uniquement, AC système uniquement -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>
     </base-config>
+
+    <!--
+        SECU-04 — SPKI pinning pour seemi.click (API + web)
+
+        Hashes générés le 2026-03-04 :
+          Primaire : clé publique du certificat TLS actuel de seemi.click
+          Backup   : paire de clés de secours stockée dans le vault /infra/tls/
+    -->
+    <domain-config>
+        <domain includeSubdomains="true">seemi.click</domain>
+        <pin-set expiration="2027-06-01">
+            <!-- Primaire — clé publique certificat TLS seemi.click (2026-03-04) -->
+            <pin digest="SHA-256">AIx+W1D2957i8l7LZZt/o9RWExZ+wIrbDjGd89rapP4=</pin>
+            <!-- Backup — clé de secours /infra/tls/seemi_backup_key.pem -->
+            <pin digest="SHA-256">8vrO/KwR5V6vbXCNmkJ7TQRmJ8wOYp3nSS0z+biklHk=</pin>
+        </pin-set>
+    </domain-config>
 
     <!-- Exception dev : HTTP autorisé vers l'émulateur Android local -->
     <domain-config cleartextTrafficPermitted="true">

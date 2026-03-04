@@ -42,6 +42,7 @@ class AuthProvider extends ChangeNotifier {
     required String dateOfBirth,
     required String password,
     required String passwordConfirmation,
+    String? referralCode,
   }) async {
     _isLoading = true;
     _error = null;
@@ -56,6 +57,7 @@ class AuthProvider extends ChangeNotifier {
         dateOfBirth:          dateOfBirth,
         password:             password,
         passwordConfirmation: passwordConfirmation,
+        referralCode:         referralCode,
       );
       _user = result.user;
       _isLoading = false;

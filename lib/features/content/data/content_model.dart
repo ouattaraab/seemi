@@ -13,6 +13,7 @@ class ContentModel extends Content {
     required super.viewCount,
     required super.purchaseCount,
     super.createdAt,
+    super.isViewOnce,
   });
 
   factory ContentModel.fromJson(Map<String, dynamic> json) {
@@ -44,6 +45,7 @@ class ContentModel extends Content {
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
+      isViewOnce: json['view_once'] as bool? ?? false,
     );
   }
 }

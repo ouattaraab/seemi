@@ -16,7 +16,9 @@ import 'package:ppv_app/features/wallet/presentation/wallet_provider.dart';
 import 'package:ppv_app/features/wallet/presentation/widgets/withdrawal_bottom_sheet.dart';
 
 class HomeDashboardTab extends StatefulWidget {
-  const HomeDashboardTab({super.key});
+  final VoidCallback? onNavigateToProfile;
+
+  const HomeDashboardTab({super.key, this.onNavigateToProfile});
 
   @override
   State<HomeDashboardTab> createState() => _HomeDashboardTabState();
@@ -57,8 +59,10 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
             floating: true,
             snap: true,
             elevation: 0,
-            toolbarHeight: 68,
-            flexibleSpace: FlexibleSpaceBar(background: _buildHeader(context)),
+            toolbarHeight: 96,
+            automaticallyImplyLeading: false,
+            titleSpacing: 0,
+            title: _buildHeader(context),
           ),
           SliverList(
             delegate: SliverChildListDelegate([
@@ -85,16 +89,16 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
         final user = profile.user;
         final firstName = user?.firstName ?? '';
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(24, 17, 24, 12),
           child: Row(
             children: [
               // ── Wordmark ──────────────────────────────────────────────
               RichText(
                 text: const TextSpan(
                   style: TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                    fontFamily: 'ADLaM Display',
+                    fontSize: 52,
+                    fontWeight: FontWeight.w400,
                     letterSpacing: -0.5,
                   ),
                   children: [
@@ -104,7 +108,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                     ),
                     TextSpan(
                       text: 'Mi',
-                      style: TextStyle(color: AppColors.kAccent),
+                      style: TextStyle(color: Color(0xFF1A9EFF)),
                     ),
                   ],
                 ),
@@ -126,8 +130,8 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                   clipBehavior: Clip.none,
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 60,
+                      height: 60,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppColors.kBgElevated,
@@ -135,7 +139,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                       ),
                       child: const Icon(
                         Icons.notifications_outlined,
-                        size: 20,
+                        size: 30,
                         color: AppColors.kTextSecondary,
                       ),
                     ),
@@ -144,8 +148,8 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                         top: -2,
                         right: -2,
                         child: Container(
-                          width: 18,
-                          height: 18,
+                          width: 20,
+                          height: 20,
                           decoration: const BoxDecoration(
                             color: AppColors.kError,
                             shape: BoxShape.circle,
@@ -158,7 +162,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                               style: const TextStyle(
                                 fontFamily: 'Plus Jakarta Sans',
                                 color: Colors.white,
-                                fontSize: 9,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -169,23 +173,26 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 ),
               ),
               const SizedBox(width: 10),
-              // ── Avatar ────────────────────────────────────────────────
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.kAccent, width: 2),
-                ),
-                child: ClipOval(
-                  child: user?.avatarUrl != null
-                      ? Image.network(
-                          user!.avatarUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (ctx, e, st) =>
-                              _avatarFallback(firstName),
-                        )
-                      : _avatarFallback(firstName),
+              // ── Avatar → navigue vers Profil ──────────────────────────
+              GestureDetector(
+                onTap: widget.onNavigateToProfile,
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.kAccent, width: 2),
+                  ),
+                  child: ClipOval(
+                    child: user?.avatarUrl != null
+                        ? Image.network(
+                            user!.avatarUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (ctx, e, st) =>
+                                _avatarFallback(firstName),
+                          )
+                        : _avatarFallback(firstName),
+                  ),
                 ),
               ),
             ],
@@ -229,11 +236,18 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
                 decoration: BoxDecoration(
-                  color: AppColors.kPrimary,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF0D4E9B), // bleu nuit profond — texte blanc 8:1
+                      AppColors.kPrimaryDark, // #1A6DCC — texte blanc 5:1
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.kPrimary.withValues(alpha: 0.30),
+                      color: AppColors.kPrimaryDark.withValues(alpha: 0.35),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
@@ -490,7 +504,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                   const Text('Contenus récents',
                       style: AppTextStyles.kTitleLarge),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () => context.push(RouteNames.kRouteMyContents),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: Size.zero,
@@ -730,7 +744,12 @@ class _ContentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return GestureDetector(
+      onTap: () => context.push(
+        RouteNames.creatorContentDetail(content.id),
+        extra: content,
+      ),
+      child: SizedBox(
       width: 260,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
@@ -850,6 +869,7 @@ class _ContentCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

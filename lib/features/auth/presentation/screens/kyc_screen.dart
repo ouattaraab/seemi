@@ -24,6 +24,9 @@ class _KycScreenState extends State<KycScreen> {
   final _dateController      = TextEditingController();
   final _imagePicker         = ImagePicker();
 
+  // Track which slot is being picked: 'recto', 'verso', 'selfie'
+  String? _pickingSlot;
+
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -32,15 +35,23 @@ class _KycScreenState extends State<KycScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage(ImageSource source, {required String slot}) async {
+    setState(() => _pickingSlot = slot);
     final picked = await _imagePicker.pickImage(
       source: source,
       maxWidth: 1920,
       maxHeight: 1080,
       imageQuality: 85,
     );
+    setState(() => _pickingSlot = null);
     if (picked != null && mounted) {
-      context.read<KycProvider>().setDocument(File(picked.path));
+      final provider = context.read<KycProvider>();
+      final file = File(picked.path);
+      switch (slot) {
+        case 'recto':  provider.setDocument(file);
+        case 'verso':  provider.setDocumentBack(file);
+        case 'selfie': provider.setSelfie(file);
+      }
     }
   }
 
@@ -82,7 +93,11 @@ class _KycScreenState extends State<KycScreen> {
 
   void _onContinueStep2() {
     final provider = context.read<KycProvider>();
-    if (provider.documentFile == null) return;
+    if (provider.documentFile == null ||
+        provider.documentBackFile == null ||
+        provider.selfieFile == null) {
+      return;
+    }
     provider.nextStep();
   }
 
@@ -297,7 +312,7 @@ class _KycScreenState extends State<KycScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Pièce d'identité",
+          "Documents d'identité",
           style: TextStyle(
             fontFamily: 'Plus Jakarta Sans',
             fontSize: 22,
@@ -308,7 +323,7 @@ class _KycScreenState extends State<KycScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          "Prenez une photo ou importez votre pièce d'identité depuis la galerie.",
+          "Prenez une photo du recto, du verso de votre pièce d'identité, puis un selfie.",
           style: TextStyle(
             fontFamily: 'Plus Jakarta Sans',
             fontSize: 14,
@@ -318,130 +333,179 @@ class _KycScreenState extends State<KycScreen> {
         ),
         const SizedBox(height: 24),
 
-        if (provider.documentFile != null) ...[
-          // Document sélectionné
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
-            child: Image.file(
-              provider.documentFile!,
-              height: 200,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
+        _buildDocSlot(
+          label: 'Recto pièce d\'identité',
+          hint: 'CNI, passeport ou permis',
+          slot: 'recto',
+          file: provider.documentFile,
+        ),
+        const SizedBox(height: 16),
+
+        _buildDocSlot(
+          label: 'Verso pièce d\'identité',
+          hint: 'Dos de votre document',
+          slot: 'verso',
+          file: provider.documentBackFile,
+        ),
+        const SizedBox(height: 16),
+
+        _buildDocSlot(
+          label: 'Selfie',
+          hint: 'Votre visage clairement visible',
+          slot: 'selfie',
+          file: provider.selfieFile,
+          icon: Icons.face_retouching_natural_outlined,
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _buildDocSlot({
+    required String label,
+    required String hint,
+    required String slot,
+    required File? file,
+    IconData icon = Icons.credit_card_outlined,
+  }) {
+    final isLoading = _pickingSlot == slot;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: AppColors.kTextTertiary,
           ),
-          const SizedBox(height: 12),
-          Center(
-            child: OutlinedButton.icon(
-              onPressed: () => _pickImage(ImageSource.gallery),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.kTextSecondary,
-                side: const BorderSide(color: AppColors.kBorder),
-                shape: const StadiumBorder(),
-                textStyle: const TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Changer de document'),
-            ),
-          ),
-        ] else ...[
-          // Placeholder
-          Container(
-            height: 180,
-            decoration: BoxDecoration(
-              color: AppColors.kBgSurface,
-              borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
-              border: Border.all(color: AppColors.kBorder),
-            ),
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: AppColors.kPrimary.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.photo_camera_outlined,
-                    size: 28,
-                    color: AppColors.kPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Aucun document sélectionné',
-                  style: TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.kTextSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'CNI, passeport ou permis de conduire',
-                  style: TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 12,
-                    color: AppColors.kTextTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Sources
-          Row(
+        ),
+        const SizedBox(height: 8),
+        if (file != null) ...[
+          Stack(
+            alignment: Alignment.topRight,
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _pickImage(ImageSource.camera),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.kPrimary,
-                    side: BorderSide(
-                        color: AppColors.kPrimary.withValues(alpha: 0.40)),
-                    shape: const StadiumBorder(),
-                    textStyle: const TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  icon: const Icon(Icons.photo_camera_outlined, size: 18),
-                  label: const Text('Caméra'),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+                child: Image.file(
+                  file,
+                  height: 130,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _pickImage(ImageSource.gallery),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.kTextSecondary,
-                    side: const BorderSide(color: AppColors.kBorder),
-                    shape: const StadiumBorder(),
-                    textStyle: const TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: GestureDetector(
+                  onTap: () => _showPickSheet(slot),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.refresh_rounded, size: 13, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text('Changer', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
-                  icon: const Icon(Icons.photo_library_outlined, size: 18),
-                  label: const Text('Galerie'),
                 ),
               ),
             ],
           ),
+        ] else ...[
+          GestureDetector(
+            onTap: isLoading ? null : () => _showPickSheet(slot),
+            child: Container(
+              height: 110,
+              decoration: BoxDecoration(
+                color: AppColors.kBgSurface,
+                borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+                border: Border.all(
+                  color: AppColors.kBorder,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.kPrimary),
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: AppColors.kPrimary, size: 26),
+                        const SizedBox(height: 8),
+                        Text(
+                          hint,
+                          style: const TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 13,
+                            color: AppColors.kTextSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Appuyer pour ajouter',
+                          style: TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 11,
+                            color: AppColors.kPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
         ],
-        const SizedBox(height: 8),
       ],
+    );
+  }
+
+  void _showPickSheet(String slot) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.kBgSurface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.kBorder, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined, color: AppColors.kPrimary),
+              title: const Text('Caméra', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera, slot: slot);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: AppColors.kTextSecondary),
+              title: const Text('Galerie', style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery, slot: slot);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -505,16 +569,35 @@ class _KycScreenState extends State<KycScreen> {
         ),
         const SizedBox(height: 16),
 
-        if (provider.documentFile != null)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
-            child: Image.file(
-              provider.documentFile!,
-              height: 150,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
+        if (provider.documentFile != null ||
+            provider.documentBackFile != null ||
+            provider.selfieFile != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (final (file, lbl) in [
+                (provider.documentFile,     'Recto'),
+                (provider.documentBackFile, 'Verso'),
+                (provider.selfieFile,       'Selfie'),
+              ]) ...[
+                if (file != null)
+                  Expanded(
+                    child: Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
+                          child: Image.file(file, height: 90, width: double.infinity, fit: BoxFit.cover),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(lbl, style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 11, color: AppColors.kTextSecondary)),
+                      ],
+                    ),
+                  ),
+                const SizedBox(width: 8),
+              ],
+            ],
           ),
+        ],
 
         if (provider.isLoading) ...[
           const SizedBox(height: 20),
@@ -577,7 +660,9 @@ class _KycScreenState extends State<KycScreen> {
   Widget _buildActionButton(KycProvider provider) {
     final isEnabled = switch (provider.currentStep) {
       1 => true,
-      2 => provider.documentFile != null,
+      2 => provider.documentFile != null &&
+           provider.documentBackFile != null &&
+           provider.selfieFile != null,
       3 => !provider.isLoading,
       _ => false,
     };

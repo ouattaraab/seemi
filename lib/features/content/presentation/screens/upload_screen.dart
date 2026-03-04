@@ -43,6 +43,7 @@ class _UploadScreenState extends State<UploadScreen> {
   int? _selectedPriceFcfa;
   final TextEditingController _priceCtrl = TextEditingController();
   bool _tosAccepted = false;
+  bool _isViewOnce = false;
   String? _publishError;
 
   // ── Partage ──
@@ -229,6 +230,7 @@ class _UploadScreenState extends State<UploadScreen> {
     final success = await provider.publishContent(
       _uploadedContentId!,
       _selectedPriceFcfa!,
+      viewOnce: _isViewOnce,
     );
 
     if (!mounted) return;
@@ -295,6 +297,7 @@ class _UploadScreenState extends State<UploadScreen> {
       _selectedPriceFcfa = null;
       _priceCtrl.clear();
       _tosAccepted = false;
+      _isViewOnce = false;
       _publishError = null;
       _shareUrl = null;
       _blurPollTimer = null;
@@ -477,7 +480,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 icon: Icons.videocam_rounded,
                 label: 'Vidéo',
                 subtitle: '50 Mo max',
-                color: AppColors.kAccentViolet,
+                color: AppColors.kPrimaryDark,
                 onTap: _onVideoTypeTapped,
               ),
             ),
@@ -907,6 +910,79 @@ class _UploadScreenState extends State<UploadScreen> {
           ),
 
         const SizedBox(height: 20),
+
+        // Toggle Vue unique
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: _isViewOnce
+                ? AppColors.kAccentViolet.withValues(alpha: 0.05)
+                : AppColors.kBgSurface,
+            borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+            border: Border.all(
+              color: _isViewOnce
+                  ? AppColors.kAccentViolet.withValues(alpha: 0.40)
+                  : AppColors.kBorder,
+            ),
+          ),
+          child: SwitchListTile(
+            value: _isViewOnce,
+            onChanged: (v) => setState(() => _isViewOnce = v),
+            activeTrackColor: AppColors.kAccentViolet,
+            activeThumbColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+            title: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _isViewOnce
+                        ? AppColors.kAccentViolet.withValues(alpha: 0.12)
+                        : AppColors.kBgElevated,
+                  ),
+                  child: Icon(
+                    Icons.visibility_off_outlined,
+                    size: 17,
+                    color: _isViewOnce
+                        ? AppColors.kAccentViolet
+                        : AppColors.kTextSecondary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Vue unique',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.kTextPrimary,
+                        ),
+                      ),
+                      Text(
+                        'L\'acheteur ne peut voir ce contenu qu\'une seule fois',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 11,
+                          color: AppColors.kTextSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
 
         // Erreur publication
         if (_publishError != null) ...[

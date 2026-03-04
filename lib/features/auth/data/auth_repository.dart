@@ -51,6 +51,7 @@ class AuthRepository {
     required String dateOfBirth,
     required String password,
     required String passwordConfirmation,
+    String? referralCode,
   }) async {
     final response = await _dataSource.registerWithEmailPassword(
       firstName:             firstName,
@@ -60,6 +61,7 @@ class AuthRepository {
       dateOfBirth:           dateOfBirth,
       password:              password,
       passwordConfirmation:  passwordConfirmation,
+      referralCode:          referralCode,
     );
 
     return _parseAuthResponse(response);
@@ -91,12 +93,16 @@ class AuthRepository {
     required String lastName,
     required String dateOfBirth,
     required File document,
+    required File documentBack,
+    required File selfie,
   }) async {
     final response = await _dataSource.submitKyc(
-      firstName:   firstName,
-      lastName:    lastName,
-      dateOfBirth: dateOfBirth,
-      document:    document,
+      firstName:    firstName,
+      lastName:     lastName,
+      dateOfBirth:  dateOfBirth,
+      document:     document,
+      documentBack: documentBack,
+      selfie:       selfie,
     );
     return _parseUserFromResponse(response);
   }

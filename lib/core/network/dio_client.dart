@@ -5,7 +5,6 @@ import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ppv_app/core/config/app_config.dart';
 import 'package:ppv_app/core/network/auth_interceptor.dart';
-import 'package:ppv_app/core/network/certificate_pinner.dart';
 import 'package:ppv_app/core/network/retry_interceptor.dart';
 import 'package:ppv_app/core/storage/secure_storage_service.dart';
 
@@ -20,6 +19,7 @@ class DioClient {
   DioClient({
     required SecureStorageService storageService,
     void Function()? onSessionExpired,
+    void Function(Map<String, dynamic>)? onMaintenance,
   }) {
     _dio = Dio(
       BaseOptions(
@@ -38,9 +38,10 @@ class DioClient {
 
     _dio.interceptors.addAll([
       AuthInterceptor(
-        dio: _dio, // M5 — inject pour conserver timeouts + cert pinning sur retry
+        dio: _dio, // M5 — inject pour conserver les mêmes timeouts sur retry
         storageService: storageService,
         onSessionExpired: onSessionExpired,
+        onMaintenance: onMaintenance,
       ),
       RetryInterceptor(dio: _dio),
       if (kDebugMode)
@@ -58,32 +59,24 @@ class DioClient {
     }
   }
 
-  /// HIGH-08 — Configure le certificate pinning via IOHttpClientAdapter.
+  /// Configure le client TLS.
   ///
-  /// - Si des pins sont configurés (PINNED_CERT_SHA256_PRIMARY non vide) :
-  ///   toutes les connexions TLS passent par [CertificatePinner.validate].
-  ///   Le SecurityContext est initialisé SANS trusted roots — ainsi, chaque
-  ///   connexion déclenche badCertificateCallback qui vérifie l'empreinte.
+  /// La protection TLS repose sur deux couches complémentaires :
+  ///   1. Android Network Security Config (network_security_config.xml) :
+  ///      HTTPS uniquement + uniquement les AC système de confiance (bloque
+  ///      les AC installées par l'utilisateur / proxies MITM).
+  ///   2. Ce client utilise la validation OS standard (HttpClient() sans
+  ///      SecurityContext personnalisé) pour éviter le bug connu de
+  ///      BoringSSL/Android où SecurityContext(withTrustedRoots: false) ne
+  ///      déclenche pas badCertificateCallback en release mode, causant un
+  ///      échec silencieux de toutes les connexions HTTPS.
   ///
-  /// - Si aucun pin n'est configuré : comportement OS standard (AC système).
-  ///   Le Network Security Config Android garantit déjà que les AC utilisateur
-  ///   ne sont pas de confiance (protection MITM de base).
-  ///
-  /// - En dev : pas de SecurityContext personnalisé (HTTP émulateur autorisé).
+  /// En dev : HTTP vers l'émulateur autorisé (géré par le manifest debug).
   void _configureTlsPinning() {
-    // Pins compilés via --dart-define-from-file : constantes à la compilation
-    const hasPins = AppConfig.pinnedCertSha256Primary != '';
-
     (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
-      if (AppConfig.isDev || !hasPins) {
-        // Dev ou prod sans pins → comportement OS normal
-        return HttpClient();
-      }
-
-      // Prod avec pins : SecurityContext sans trusted roots pour forcer
-      // le passage par badCertificateCallback sur TOUTES les connexions.
-      return HttpClient(context: SecurityContext(withTrustedRoots: false))
-        ..badCertificateCallback = CertificatePinner.validate;
+      // Comportement OS standard dans tous les cas.
+      // Le Network Security Config Android garantit la sécurité en production.
+      return HttpClient();
     };
   }
 

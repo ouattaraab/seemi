@@ -74,6 +74,15 @@ class ApiException implements Exception {
       );
     }
 
+    // 429 — message Laravel en anglais remplacé par un message français
+    if (response.statusCode == 429) {
+      return ApiException(
+        message: 'Trop de requêtes. Veuillez patienter quelques secondes avant de réessayer.',
+        statusCode: 429,
+        errorCode: 'RATE_LIMITED',
+      );
+    }
+
     final data = response.data;
     if (data is Map<String, dynamic>) {
       return ApiException(

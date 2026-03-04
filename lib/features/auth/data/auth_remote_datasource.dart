@@ -19,6 +19,7 @@ class AuthRemoteDataSource {
     required String dateOfBirth,
     required String password,
     required String passwordConfirmation,
+    String? referralCode,
   }) async {
     try {
       final response = await _dio.post(
@@ -31,6 +32,7 @@ class AuthRemoteDataSource {
           'date_of_birth':          dateOfBirth,
           'password':               password,
           'password_confirmation':  passwordConfirmation,
+          if (referralCode != null && referralCode.isNotEmpty) 'referral_code': referralCode,
         },
       );
       return response.data as Map<String, dynamic>;
@@ -81,14 +83,24 @@ class AuthRemoteDataSource {
     required String lastName,
     required String dateOfBirth,
     required File document,
+    required File documentBack,
+    required File selfie,
   }) async {
     final formData = FormData.fromMap({
-      'first_name':    firstName,
-      'last_name':     lastName,
-      'date_of_birth': dateOfBirth,
-      'id_document':   await MultipartFile.fromFile(
+      'first_name':      firstName,
+      'last_name':       lastName,
+      'date_of_birth':   dateOfBirth,
+      'id_document':     await MultipartFile.fromFile(
         document.path,
         filename: document.path.split('/').last,
+      ),
+      'id_document_back': await MultipartFile.fromFile(
+        documentBack.path,
+        filename: documentBack.path.split('/').last,
+      ),
+      'selfie':          await MultipartFile.fromFile(
+        selfie.path,
+        filename: selfie.path.split('/').last,
       ),
     });
 
@@ -153,16 +165,22 @@ class AuthRemoteDataSource {
     final map = <String, dynamic>{};
     if (firstName != null) map['first_name'] = firstName;
     if (lastName != null)  map['last_name']  = lastName;
-    if (avatar != null) {
-      map['avatar'] = await MultipartFile.fromFile(
-        avatar.path,
-        filename: avatar.path.split('/').last,
-      );
-    }
 
     try {
-      final response = await _dio.put('/profile', data: FormData.fromMap(map));
-      return response.data as Map<String, dynamic>;
+      if (avatar != null) {
+        // PHP ne peuple pas $_FILES pour les requêtes PUT multipart.
+        // Laravel method spoofing : POST + _method=PUT pour les uploads fichier.
+        map['_method'] = 'PUT';
+        map['avatar'] = await MultipartFile.fromFile(
+          avatar.path,
+          filename: avatar.path.split('/').last,
+        );
+        final response = await _dio.post('/profile', data: FormData.fromMap(map));
+        return response.data as Map<String, dynamic>;
+      } else {
+        final response = await _dio.put('/profile', data: map.isNotEmpty ? map : null);
+        return response.data as Map<String, dynamic>;
+      }
     } on DioException catch (e) {
       final responseData = e.response?.data;
       final message = responseData is Map

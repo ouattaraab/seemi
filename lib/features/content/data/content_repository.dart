@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:ppv_app/features/content/data/content_model.dart';
 import 'package:ppv_app/features/content/data/content_remote_datasource.dart';
+import 'package:ppv_app/features/content/domain/content.dart';
 
 /// Repository contenus — orchestre ContentRemoteDataSource.
 class ContentRepository {
@@ -38,12 +39,17 @@ class ContentRepository {
     await _dataSource.acceptContentPublishTos();
   }
 
-  /// Met à jour le prix d'un contenu et retourne le ContentModel mis à jour.
+  /// Met à jour le prix (et le mode vue unique) d'un contenu.
   Future<ContentModel> updateContentPrice(
     int contentId,
-    int priceInCentimes,
-  ) async {
-    final response = await _dataSource.updateContentPrice(contentId, priceInCentimes);
+    int priceInCentimes, {
+    bool viewOnce = false,
+  }) async {
+    final response = await _dataSource.updateContentPrice(
+      contentId,
+      priceInCentimes,
+      viewOnce: viewOnce,
+    );
 
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
@@ -98,6 +104,31 @@ class ContentRepository {
       nextCursor: data['next_cursor'] as String?,
       hasMore: data['has_more'] as bool? ?? false,
     );
+  }
+
+  /// Récupère la liste des acheteurs d'un contenu.
+  Future<List<ContentBuyer>> getContentBuyers(int contentId) async {
+    final response = await _dataSource.getContentBuyers(contentId);
+
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Invalid API response: missing data field');
+    }
+
+    final rawList = data['buyers'];
+    if (rawList is! List) {
+      throw Exception('Invalid API response: buyers is not a list');
+    }
+
+    return rawList
+        .cast<Map<String, dynamic>>()
+        .map(ContentBuyer.fromJson)
+        .toList();
+  }
+
+  /// Supprime un contenu (soft-delete côté API).
+  Future<void> deleteContent(int contentId) async {
+    await _dataSource.deleteContent(contentId);
   }
 
   /// Upload une vidéo et retourne le ContentModel créé.

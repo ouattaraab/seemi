@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ppv_app/features/content/data/content_model.dart';
 import 'package:ppv_app/features/content/data/content_repository.dart';
+import 'package:ppv_app/features/content/domain/content.dart';
 import 'package:ppv_app/features/content/presentation/content_provider.dart';
 
 class _MockContentRepository implements ContentRepository {
@@ -68,8 +69,9 @@ class _MockContentRepository implements ContentRepository {
   @override
   Future<ContentModel> updateContentPrice(
     int contentId,
-    int priceInCentimes,
-  ) async {
+    int priceInCentimes, {
+    bool viewOnce = false,
+  }) async {
     publishCallCount++;
     if (shouldFail) {
       throw Exception(failMessage);
@@ -83,7 +85,13 @@ class _MockContentRepository implements ContentRepository {
       price: priceInCentimes,
       viewCount: 0,
       purchaseCount: 0,
+      isViewOnce: viewOnce,
     );
+  }
+
+  @override
+  Future<List<ContentBuyer>> getContentBuyers(int contentId) async {
+    return [];
   }
 
   @override

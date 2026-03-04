@@ -23,31 +23,58 @@ class ContentDetailScreen extends StatefulWidget {
   State<ContentDetailScreen> createState() => _ContentDetailScreenState();
 }
 
-class _ContentDetailScreenState extends State<ContentDetailScreen> {
+class _ContentDetailScreenState extends State<ContentDetailScreen>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     if (widget.paymentReference != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final contentProvider = context.read<ContentDetailProvider>();
-        final paymentProvider = context.read<PaymentProvider>();
+        _triggerReveal(widget.paymentReference!);
+      });
+    }
+  }
 
-        void triggerReveal() {
-          if (contentProvider.content != null) {
-            paymentProvider.checkPaymentAndReveal(
-              slug: contentProvider.content!.slug,
-              reference: widget.paymentReference!,
-            );
-          } else if (!contentProvider.isLoading) {
-            // Contenu non disponible — abandon silencieux
-          } else {
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) triggerReveal();
-            });
-          }
-        }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
-        triggerReveal();
+  /// Déclenche automatiquement la vérification de paiement quand l'app
+  /// revient au premier plan. Couvre le cas où le navigateur externe
+  /// (Paystack) n'a pas redirigé via App Link vers le contenu.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      final paymentProvider = context.read<PaymentProvider>();
+      final contentProvider = context.read<ContentDetailProvider>();
+      if (paymentProvider.hasPendingPayment &&
+          contentProvider.content != null) {
+        paymentProvider.checkPaymentAndReveal(
+          slug: contentProvider.content!.slug,
+          reference: paymentProvider.pendingReference!,
+        );
+      }
+    }
+  }
+
+  void _triggerReveal(String reference) {
+    final contentProvider = context.read<ContentDetailProvider>();
+    final paymentProvider = context.read<PaymentProvider>();
+
+    if (contentProvider.content != null) {
+      paymentProvider.checkPaymentAndReveal(
+        slug: contentProvider.content!.slug,
+        reference: reference,
+      );
+    } else if (!contentProvider.isLoading) {
+      // Contenu non disponible — abandon silencieux
+    } else {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _triggerReveal(reference);
       });
     }
   }
@@ -337,9 +364,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 context, content, paymentProvider),
           ],
 
+          // ── Vérification manuelle (retour du navigateur externe) ─────
+          if (paymentProvider.hasPendingPayment) ...[
+            const SizedBox(height: 16),
+            _buildCheckPaymentBanner(context, content, paymentProvider),
+          ],
+
           // ── Bouton payer ─────────────────────────────────────────────
           if (!paymentProvider.isPaid &&
-              !paymentProvider.paymentFailed) ...[
+              !paymentProvider.paymentFailed &&
+              !paymentProvider.hasPendingPayment) ...[
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -369,6 +403,88 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  // ─── Bannière vérification paiement en attente ────────────────────────────
+
+  Widget _buildCheckPaymentBanner(
+    BuildContext context,
+    PublicContentData content,
+    PaymentProvider paymentProvider,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.kPrimary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+        border: Border.all(
+            color: AppColors.kPrimary.withValues(alpha: 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.hourglass_top_rounded,
+                  color: AppColors.kPrimary, size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Paiement initié. Revenez ici après avoir complété le paiement pour débloquer le contenu.',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontSize: 13,
+                    color: AppColors.kPrimary,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            key: const Key('btn-check-payment'),
+            onPressed: () => paymentProvider.checkPaymentAndReveal(
+              slug: content.slug,
+              reference: paymentProvider.pendingReference!,
+            ),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Vérifier mon paiement'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.kPrimary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton(
+              key: const Key('btn-new-payment'),
+              onPressed: () {
+                paymentProvider.reset();
+                _showPaymentDialog(context, content.slug, content.priceFcfa);
+              },
+              child: const Text(
+                'Payer à nouveau',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 12,
+                  color: AppColors.kTextTertiary,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

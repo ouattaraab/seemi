@@ -230,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 // Logo SeeMi
-                const SeeMiLogo(size: 68),
+                const SeeMiLogo(size: 73),
               ],
             ),
           ),
@@ -242,9 +242,9 @@ class _LoginScreenState extends State<LoginScreen> {
         const Text.rich(
           TextSpan(
             style: TextStyle(
-              fontFamily: 'Plus Jakarta Sans',
+              fontFamily: 'ADLaM Display',
               fontSize: 32,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w400,
               letterSpacing: -0.5,
             ),
             children: [
@@ -254,7 +254,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               TextSpan(
                 text: 'Mi',
-                style: TextStyle(color: AppColors.kAccent),
+                style: TextStyle(color: Color(0xFF1A9EFF)),
               ),
             ],
           ),

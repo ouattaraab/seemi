@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ppv_app/core/network/api_exceptions.dart';
 import 'package:ppv_app/features/wallet/data/wallet_repository.dart';
 import 'package:ppv_app/features/wallet/domain/wallet_transaction.dart';
 import 'package:ppv_app/features/wallet/domain/withdrawal_summary.dart';
@@ -41,7 +42,9 @@ class WalletProvider extends ChangeNotifier {
       _balance = result.balance;
       await _persistBalanceToCache(_balance);
     } on Exception catch (e) {
-      _error = e.toString();
+      _error = e is ApiException ? e.message
+               : e is NetworkException ? e.message
+               : 'Une erreur inattendue est survenue.';
       // En mode hors-ligne, le solde cached reste affiché — pas d'écrasement
     } finally {
       _isLoading = false;
@@ -111,7 +114,9 @@ class WalletProvider extends ChangeNotifier {
       // C2 — Persister le total des gains pour affichage hors-ligne
       await _persistTotalCreditsToCache(_totalCredits);
     } on Exception catch (e) {
-      _transactionsError = e.toString();
+      _transactionsError = e is ApiException ? e.message
+               : e is NetworkException ? e.message
+               : 'Une erreur inattendue est survenue.';
       // C2 — Restaurer le total cached si le réseau est indisponible
       if (refresh) await _restoreTotalCreditsFromCache();
     } finally {
@@ -175,7 +180,9 @@ class WalletProvider extends ChangeNotifier {
       await loadWithdrawals();
       return true;
     } on Exception catch (e) {
-      _withdrawalError = e.toString().replaceFirst('Exception: ', '');
+      _withdrawalError = e is ApiException ? e.message
+               : e is NetworkException ? e.message
+               : 'Une erreur inattendue est survenue.';
       _isWithdrawing = false;
       notifyListeners();
       return false;

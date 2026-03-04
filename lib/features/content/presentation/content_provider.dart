@@ -123,15 +123,23 @@ class ContentProvider extends ChangeNotifier {
   /// Accepte les CGU de publication et définit le prix du contenu.
   ///
   /// [priceInFcfa] est en FCFA — la conversion en centimes est faite ici.
-  Future<bool> publishContent(int contentId, int priceInFcfa) async {
+  /// [viewOnce] active le mode vue unique (consultation unique pour l'acheteur).
+  Future<bool> publishContent(
+    int contentId,
+    int priceInFcfa, {
+    bool viewOnce = false,
+  }) async {
     _isPublishing = true;
     _error = null;
     _safeNotify();
 
     try {
       await _repository.acceptContentPublishTos();
-      _lastPublishedContent =
-          await _repository.updateContentPrice(contentId, priceInFcfa * 100);
+      _lastPublishedContent = await _repository.updateContentPrice(
+        contentId,
+        priceInFcfa * 100,
+        viewOnce: viewOnce,
+      );
       return true;
     } catch (e) {
       final raw = e.toString().replaceFirst('Exception: ', '');
@@ -206,10 +214,49 @@ class ContentProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  // --- Delete state ---
+  bool _isDeletingContent = false;
+  String? _deleteContentError;
+
+  bool get isDeletingContent => _isDeletingContent;
+  String? get deleteContentError => _deleteContentError;
+
+  /// Supprime un contenu et le retire de la liste locale.
+  /// Retourne [true] en cas de succès, [false] sinon.
+  Future<bool> deleteContent(int contentId) async {
+    if (_isDeletingContent) return false;
+    _isDeletingContent = true;
+    _deleteContentError = null;
+    _safeNotify();
+
+    try {
+      await _repository.deleteContent(contentId);
+      _myContents.removeWhere((c) => c.id == contentId);
+      return true;
+    } catch (e) {
+      final raw = e.toString().replaceFirst('Exception: ', '');
+      _deleteContentError =
+          raw.isNotEmpty ? raw : 'Erreur lors de la suppression.';
+      return false;
+    } finally {
+      _isDeletingContent = false;
+      _safeNotify();
+    }
+  }
+
   /// Récupère un contenu par son ID (utilisé pour le polling du blur).
   Future<Content?> getContent(int id) async {
     try {
       return await _repository.getContent(id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Récupère la liste des acheteurs d'un contenu (vue créateur).
+  Future<List<ContentBuyer>?> getContentBuyers(int contentId) async {
+    try {
+      return await _repository.getContentBuyers(contentId);
     } catch (_) {
       return null;
     }

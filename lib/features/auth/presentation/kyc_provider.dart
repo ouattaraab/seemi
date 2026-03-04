@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:ppv_app/core/network/api_exceptions.dart';
 import 'package:ppv_app/features/auth/data/auth_repository.dart';
 
 /// Provider KYC — gère le flux multi-étapes de vérification d'identité.
@@ -18,6 +19,8 @@ class KycProvider extends ChangeNotifier {
   String _lastName = '';
   DateTime? _dateOfBirth;
   File? _documentFile;
+  File? _documentBackFile;
+  File? _selfieFile;
   String? _kycStatus;
   bool _isSubmitting = false;
   bool _disposed = false;
@@ -29,6 +32,8 @@ class KycProvider extends ChangeNotifier {
   String get lastName => _lastName;
   DateTime? get dateOfBirth => _dateOfBirth;
   File? get documentFile => _documentFile;
+  File? get documentBackFile => _documentBackFile;
+  File? get selfieFile => _selfieFile;
   String? get kycStatus => _kycStatus;
 
   @override
@@ -96,9 +101,23 @@ class KycProvider extends ChangeNotifier {
     _safeNotify();
   }
 
-  /// Stocke le fichier document sélectionné.
+  /// Stocke le fichier document recto sélectionné.
   void setDocument(File file) {
     _documentFile = file;
+    _error = null;
+    _safeNotify();
+  }
+
+  /// Stocke le fichier document verso sélectionné.
+  void setDocumentBack(File file) {
+    _documentBackFile = file;
+    _error = null;
+    _safeNotify();
+  }
+
+  /// Stocke le selfie sélectionné.
+  void setSelfie(File file) {
+    _selfieFile = file;
     _error = null;
     _safeNotify();
   }
@@ -134,10 +153,12 @@ class KycProvider extends ChangeNotifier {
           '${_dateOfBirth!.year}-${_dateOfBirth!.month.toString().padLeft(2, '0')}-${_dateOfBirth!.day.toString().padLeft(2, '0')}';
 
       final user = await _repository.submitKyc(
-        firstName: _firstName.trim(),
-        lastName: _lastName.trim(),
-        dateOfBirth: dateStr,
-        document: _documentFile!,
+        firstName:    _firstName.trim(),
+        lastName:     _lastName.trim(),
+        dateOfBirth:  dateStr,
+        document:     _documentFile!,
+        documentBack: _documentBackFile!,
+        selfie:       _selfieFile!,
       );
 
       _kycStatus = user.kycStatus;
@@ -145,7 +166,9 @@ class KycProvider extends ChangeNotifier {
       _safeNotify();
       return true;
     } catch (e) {
-      _error = e.toString().replaceFirst('Exception: ', '');
+      _error = e is ApiException ? e.message
+               : e is NetworkException ? e.message
+               : 'Une erreur inattendue est survenue.';
       _isLoading = false;
       _safeNotify();
       return false;

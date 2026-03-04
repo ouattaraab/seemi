@@ -66,6 +66,10 @@ class ProfileProvider extends ChangeNotifier {
         lastName: lastName,
         avatar: avatar,
       );
+      // Re-fetch depuis le serveur pour confirmer la persistance de l'avatar.
+      if (avatar != null) {
+        _user = await _repository.getProfile();
+      }
       return true;
     } catch (e) {
       _error = 'Erreur lors de la mise à jour du profil.';

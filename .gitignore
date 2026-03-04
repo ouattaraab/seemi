@@ -13,6 +13,7 @@ lib/firebase_options.dart
 # Release keystores - NEVER commit
 *.keystore
 *.jks
+key.properties
 
 # Miscellaneous
 *.class

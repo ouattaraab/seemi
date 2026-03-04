@@ -1,7 +1,7 @@
 name: ppv_app
 description: "SeeMi — Plateforme de monétisation de contenu visuel pour créateurs africains."
 publish_to: 'none'
-version: 1.2.0+3
+version: 1.2.5+8
 
 environment:
   sdk: ">=3.11.0 <4.0.0"
@@ -26,9 +26,12 @@ dependencies:
   flutter_contacts: ^1.1.9
   permission_handler: ^11.3.1
   url_launcher: ^6.3.1
+  package_info_plus: ^8.3.0
   gal: ^2.3.0
   path_provider: ^2.1.5
   shared_preferences: ^2.3.2
+  flutter_jailbreak_detection: ^1.10.0
+  sentry_flutter: ^8.14.2  # SECU-11 — monitoring erreurs + crashes
 
 dev_dependencies:
   flutter_test:
@@ -44,6 +47,12 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/fonts/
+
+  fonts:
+    - family: ADLaM Display
+      fonts:
+        - asset: assets/fonts/ADLaMDisplay-Regular.ttf
 
 flutter_launcher_icons:
   android: "launcher_icon"

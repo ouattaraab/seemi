@@ -7,11 +7,11 @@ abstract final class AppColors {
   static const Color kBgElevated = Color(0xFFF3F4F6); // secondary
   static const Color kBgOverlay  = Color(0xFFF1F5F9); // muted
 
-  // Primary (indigo)
-  static const Color kPrimary      = Color(0xFF4338CA);
-  static const Color kPrimaryDark  = Color(0xFF3730A3);
-  static const Color kPrimaryLight = Color(0xFF6366F1);
-  static const Color kPrimarySurface = Color(0x1A4338CA); // 10% opacity
+  // Primary (SeeMi blue)
+  static const Color kPrimary      = Color(0xFF1A9EFF);
+  static const Color kPrimaryDark  = Color(0xFF1A6DCC);
+  static const Color kPrimaryLight = Color(0xFF5BB8FF);
+  static const Color kPrimarySurface = Color(0x1A1A9EFF); // 10% opacity
 
   // Accent (ambre)
   static const Color kAccent     = Color(0xFFF59E0B);

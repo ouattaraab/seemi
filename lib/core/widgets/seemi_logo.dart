@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:ppv_app/core/theme/app_colors.dart';
 
-/// Logo SeeMi — cercle dégradé indigo avec icône œil blanc.
+/// Logo SeeMi — cercle bleu #1A6DCC avec icône œil blanc.
 ///
 /// Utilisé dans SplashScreen, LoginScreen, RegisterScreen.
 /// [size] est le diamètre du cercle (par défaut 68).
@@ -10,6 +9,9 @@ class SeeMiLogo extends StatelessWidget {
 
   const SeeMiLogo({super.key, this.size = 68});
 
+  /// Bleu principal du cercle logo (#1A6DCC)
+  static const Color _circleBlue = Color(0xFF1A6DCC);
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -17,13 +19,7 @@ class SeeMiLogo extends StatelessWidget {
       height: size,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            AppColors.kPrimaryLight, // centre plus clair
-            AppColors.kPrimaryDark,  // bord plus foncé
-          ],
-          stops: [0.0, 1.0],
-        ),
+        color: _circleBlue,
       ),
       child: Icon(
         Icons.visibility_rounded,

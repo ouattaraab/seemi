@@ -1,5 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:ppv_app/core/config/app_config.dart';
+import 'package:ppv_app/core/security/device_security.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:ppv_app/firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:ppv_app/core/network/dio_client.dart';
@@ -23,11 +26,20 @@ import 'package:ppv_app/features/sharing/data/contact_repository.dart';
 import 'package:ppv_app/features/sharing/data/share_repository.dart';
 import 'package:ppv_app/features/notifications/data/notification_repository.dart';
 import 'package:ppv_app/features/notifications/presentation/notification_provider.dart';
+import 'package:ppv_app/features/referral/data/referral_repository.dart';
+import 'package:ppv_app/features/referral/presentation/referral_provider.dart';
 import 'package:ppv_app/features/wallet/data/wallet_repository.dart';
 import 'package:ppv_app/features/wallet/presentation/wallet_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Bloquer l'app sur les devices compromis (jailbreak/root/dev mode)
+  if (await DeviceSecurity.isCompromised()) {
+    runApp(const _JailbreakWarningApp());
+    return;
+  }
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -35,7 +47,66 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase init error: $e');
   }
-  runApp(const PpvApp());
+
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = AppConfig.sentryDsn;
+      options.environment = AppConfig.environment;
+      // Traces désactivées en dev, 10 % en prod
+      options.tracesSampleRate = AppConfig.isProd ? 0.1 : 0.0;
+    },
+    appRunner: () => runApp(const PpvApp()),
+  );
+}
+
+/// Écran affiché sur les devices compromis — remplace l'app entière.
+class _JailbreakWarningApp extends StatelessWidget {
+  const _JailbreakWarningApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.security, color: Color(0xFFE53935), size: 72),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Appareil non sécurisé',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'SeeMi ne peut pas fonctionner sur un appareil rooté, '
+                    'jailbreaké ou avec le mode développeur activé.\n\n'
+                    'Désactivez le mode développeur et réessayez.',
+                    style: TextStyle(
+                      color: Colors.white.withAlpha(178),
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Root widget de l'application PPV.
@@ -55,6 +126,7 @@ class _PpvAppState extends State<PpvApp> {
   late final PayoutRepository _payoutRepository;
   late final WalletRepository _walletRepository;
   late final NotificationRepository _notificationRepository;
+  late final ReferralRepository _referralRepository;
 
   @override
   void initState() {
@@ -65,6 +137,8 @@ class _PpvAppState extends State<PpvApp> {
     final dioClient = DioClient(
       storageService: storageService,
       onSessionExpired: () => _appRouter.router.go(RouteNames.kRouteLogin),
+      onMaintenance: (data) =>
+          _appRouter.router.go(RouteNames.kRouteMaintenance, extra: data),
     );
     final authDataSource = AuthRemoteDataSource(dio: dioClient.dio);
     _authRepository = AuthRepository(
@@ -77,6 +151,7 @@ class _PpvAppState extends State<PpvApp> {
     _payoutRepository = PayoutRepository(dataSource: payoutDataSource);
     _walletRepository = WalletRepository(dio: dioClient.dio);
     _notificationRepository = NotificationRepository(dio: dioClient.dio);
+    _referralRepository = ReferralRepository(dio: dioClient.dio);
   }
 
   @override
@@ -108,6 +183,9 @@ class _PpvAppState extends State<PpvApp> {
           create: (_) => NotificationProvider(
             repository: _notificationRepository,
           ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ReferralProvider(repository: _referralRepository),
         ),
         Provider<ShareRepository>(
           create: (_) => ShareRepositoryImpl(),
