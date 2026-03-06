@@ -1,7 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
+import 'package:ppv_app/core/services/biometric_service.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/widgets/seemi_logo.dart';
@@ -20,8 +23,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final _identifierCtrl = TextEditingController();
   final _passwordCtrl   = TextEditingController();
 
-  bool _obscurePassword = true;
-  bool _acceptedTerms   = false;
+  bool _obscurePassword  = true;
+  bool _acceptedTerms    = false;
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometric();
+  }
+
+  Future<void> _checkBiometric() async {
+    final enabled = await BiometricService.isEnabled();
+    if (mounted) setState(() => _biometricEnabled = enabled);
+  }
 
   @override
   void dispose() {
@@ -49,7 +64,47 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (!mounted) return;
-    if (success) context.go(RouteNames.kRouteHome);
+    if (success) {
+      // Rafraîchit les credentials biométriques si la biométrie est activée.
+      if (_biometricEnabled) {
+        await BiometricService.enable(
+          _identifierCtrl.text.trim(),
+          _passwordCtrl.text,
+        );
+      }
+      if (!mounted) return;
+      context.go(RouteNames.kRouteHome);
+    }
+  }
+
+  Future<void> _onBiometricLogin() async {
+    final authenticated = await BiometricService.authenticate(
+      reason: 'Connectez-vous à votre compte SeeMi',
+    );
+    if (!mounted) return;
+    if (!authenticated) return;
+
+    final credentials = await BiometricService.getCredentials();
+    if (!mounted) return;
+    if (credentials == null) {
+      setState(() => _biometricEnabled = false);
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.login(
+      emailOrPhone: credentials.identifier,
+      password:     credentials.password,
+    );
+
+    if (!mounted) return;
+    if (success) {
+      context.go(RouteNames.kRouteHome);
+    } else {
+      // Le mot de passe a changé — on désactive la biométrie.
+      await BiometricService.disable();
+      if (mounted) setState(() => _biometricEnabled = false);
+    }
   }
 
   @override
@@ -180,6 +235,34 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
+                    // ── Bouton biométrique ────────────────────────────────
+                    if (_biometricEnabled) ...[
+                      const SizedBox(height: AppSpacing.kSpaceMd),
+                      SizedBox(
+                        height: AppSpacing.kButtonHeight,
+                        child: OutlinedButton.icon(
+                          onPressed: authProvider.isLoading
+                              ? null
+                              : _onBiometricLogin,
+                          icon: const Icon(
+                            Icons.fingerprint_rounded,
+                            size: 22,
+                          ),
+                          label: const Text('Connexion biométrique'),
+                          style: OutlinedButton.styleFrom(
+                            shape: const StadiumBorder(),
+                            side: const BorderSide(color: AppColors.kBorder),
+                            foregroundColor: AppColors.kTextPrimary,
+                            textStyle: const TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: AppSpacing.kSpaceLg),
 
                     // ── Lien inscription ──────────────────────────────────
@@ -279,6 +362,14 @@ class _LoginScreenState extends State<LoginScreen> {
   // ─── Ligne CGU ────────────────────────────────────────────────────────────
 
   Widget _buildTermsRow() {
+    final linkRecognizer = TapGestureRecognizer()
+      ..onTap = () async {
+        final uri = Uri.parse('https://seemi.click/cgu');
+        if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+          await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+        }
+      };
+
     return GestureDetector(
       onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
       behavior: HitTestBehavior.opaque,
@@ -313,27 +404,28 @@ class _LoginScreenState extends State<LoginScreen> {
                   : null,
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Text.rich(
                 TextSpan(
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
                     fontSize: 13,
                     color: AppColors.kTextSecondary,
                     height: 1.55,
                   ),
                   children: [
-                    TextSpan(text: "J'accepte les "),
+                    const TextSpan(text: "J'accepte les "),
                     TextSpan(
                       text: 'termes et conditions',
-                      style: TextStyle(
+                      recognizer: linkRecognizer,
+                      style: const TextStyle(
                         color: AppColors.kPrimary,
                         fontWeight: FontWeight.w600,
                         decoration: TextDecoration.underline,
                         decorationColor: AppColors.kPrimary,
                       ),
                     ),
-                    TextSpan(text: " d'utilisation de SeeMi."),
+                    const TextSpan(text: " d'utilisation de SeeMi."),
                   ],
                 ),
               ),

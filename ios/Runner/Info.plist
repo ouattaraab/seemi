@@ -55,6 +55,8 @@
 	<string>SeeMi a besoin d'accéder à votre galerie pour enregistrer le contenu téléchargé.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>SeeMi utilise vos contacts pour envoyer le lien de contenu par SMS.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>SeeMi utilise Face ID pour vous connecter rapidement et en toute sécurité.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

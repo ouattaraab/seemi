@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ppv_app/core/config/app_config.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
+import 'package:ppv_app/core/services/biometric_service.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
@@ -22,12 +23,28 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _biometricAvailable = false;
+  bool _biometricEnabled   = false;
+  bool _biometricLoading   = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<ProfileProvider>().loadProfile();
     });
+    _loadBiometricState();
+  }
+
+  Future<void> _loadBiometricState() async {
+    final available = await BiometricService.isAvailable();
+    final enabled   = available && await BiometricService.isEnabled();
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = available;
+        _biometricEnabled   = enabled;
+      });
+    }
   }
 
   Future<void> _pickAndUploadAvatar(ProfileProvider provider) async {
@@ -113,6 +130,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             onTap: () => context.push(RouteNames.kRouteNotificationPreferences),
                           ),
                         ]),
+                        // ── Biométrie (si disponible) ──────────────────
+                        if (_biometricAvailable) ...[
+                          const SizedBox(height: 10),
+                          _buildBiometricCard(context),
+                        ],
 
                         const SizedBox(height: 32),
 
@@ -436,6 +458,142 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ─── Biométrie ─────────────────────────────────────────────────────────────
+
+  Widget _buildBiometricCard(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.kBgSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+        border: Border.all(color: AppColors.kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.kTextPrimary.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+        child: SwitchListTile.adaptive(
+          value: _biometricEnabled,
+          onChanged: _biometricLoading
+              ? null
+              : (_) => _handleBiometricToggle(context),
+          activeTrackColor: AppColors.kPrimary,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          secondary: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.kSuccess.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: _biometricLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.fingerprint_rounded,
+                    color: AppColors.kSuccess, size: 20),
+          ),
+          title: Text(
+            'Connexion biométrique',
+            style: AppTextStyles.kBodyMedium.copyWith(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            _biometricEnabled ? 'Face ID / Empreinte activé' : 'Désactivée',
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 12,
+              color: _biometricEnabled
+                  ? AppColors.kSuccess
+                  : AppColors.kTextTertiary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleBiometricToggle(BuildContext context) async {
+    if (_biometricEnabled) {
+      await _disableBiometric(context);
+    } else {
+      await _enableBiometric(context);
+    }
+  }
+
+  Future<void> _enableBiometric(BuildContext context) async {
+    // 1. Récupérer l'identifiant depuis le profil
+    final user = context.read<ProfileProvider>().user;
+    final identifier = (user?.email?.isNotEmpty == true
+            ? user!.email!
+            : user?.phone) ??
+        '';
+    if (identifier.isEmpty) return;
+
+    // 2. Demander le mot de passe
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final password  = await _showPasswordSheet(context);
+    if (password == null || !mounted) return;
+
+    setState(() => _biometricLoading = true);
+
+    // 3. Prompt biométrique
+    final authenticated = await BiometricService.authenticate(
+      reason: 'Activez la connexion biométrique pour SeeMi',
+    );
+    if (!mounted) return;
+
+    if (!authenticated) {
+      setState(() => _biometricLoading = false);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Activation annulée.')),
+      );
+      return;
+    }
+
+    // 4. Sauvegarder les credentials
+    await BiometricService.enable(identifier, password);
+    if (!mounted) return;
+    setState(() {
+      _biometricEnabled = true;
+      _biometricLoading = false;
+    });
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Connexion biométrique activée.'),
+        backgroundColor: AppColors.kSuccess,
+      ),
+    );
+  }
+
+  Future<void> _disableBiometric(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _biometricLoading = true);
+    await BiometricService.disable();
+    if (!mounted) return;
+    setState(() {
+      _biometricEnabled = false;
+      _biometricLoading = false;
+    });
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Connexion biométrique désactivée.')),
+    );
+  }
+
+  Future<String?> _showPasswordSheet(BuildContext context) {
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _BiometricPasswordSheet(),
     );
   }
 
@@ -857,6 +1015,126 @@ class _MenuRow extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── _BiometricPasswordSheet ──────────────────────────────────────────────────
+
+class _BiometricPasswordSheet extends StatefulWidget {
+  const _BiometricPasswordSheet();
+
+  @override
+  State<_BiometricPasswordSheet> createState() => _BiometricPasswordSheetState();
+}
+
+class _BiometricPasswordSheetState extends State<_BiometricPasswordSheet> {
+  final _ctrl    = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _obscure  = true;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.kBgSurface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSpacing.kRadiusXl)),
+      ),
+      padding: EdgeInsets.only(left: 24, right: 24, top: 12, bottom: bottom + 28),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.kBorder,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Icon(Icons.fingerprint_rounded, size: 40, color: AppColors.kSuccess),
+            const SizedBox(height: 12),
+            const Text(
+              'Activer la biométrie',
+              style: TextStyle(
+                fontFamily: 'Plus Jakarta Sans', fontSize: 18, fontWeight: FontWeight.w800,
+                color: AppColors.kTextPrimary, letterSpacing: -0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Entrez votre mot de passe pour confirmer l\'activation.',
+              style: TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 13, color: AppColors.kTextSecondary, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _ctrl,
+              obscureText: _obscure,
+              autofocus: true,
+              validator: (v) => (v == null || v.isEmpty) ? 'Mot de passe requis' : null,
+              style: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 15, color: AppColors.kTextPrimary),
+              decoration: InputDecoration(
+                hintText: 'Mot de passe',
+                hintStyle: const TextStyle(fontFamily: 'Plus Jakarta Sans', color: AppColors.kTextTertiary),
+                prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.kTextSecondary, size: 20),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    color: AppColors.kTextSecondary, size: 20,
+                  ),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+                filled: true,
+                fillColor: AppColors.kBgElevated,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+                  borderSide: const BorderSide(color: AppColors.kBorder),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+                  borderSide: const BorderSide(color: AppColors.kBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+                  borderSide: const BorderSide(color: AppColors.kPrimary, width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: AppSpacing.kButtonHeight,
+              child: FilledButton(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    Navigator.of(context).pop(_ctrl.text);
+                  }
+                },
+                style: FilledButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  backgroundColor: AppColors.kPrimary,
+                  textStyle: const TextStyle(fontFamily: 'Plus Jakarta Sans', fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                child: const Text('Confirmer'),
+              ),
+            ),
+          ],
         ),
       ),
     );
