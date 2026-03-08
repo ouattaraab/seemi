@@ -26,6 +26,7 @@ import 'package:ppv_app/features/payout/presentation/screens/payout_method_scree
 import 'package:ppv_app/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:ppv_app/features/app_update/presentation/screens/force_update_screen.dart';
 import 'package:ppv_app/features/maintenance/presentation/screens/maintenance_screen.dart';
+import 'package:ppv_app/features/creator_consents/presentation/screens/creator_consents_screen.dart';
 import 'package:ppv_app/features/referral/presentation/screens/referral_screen.dart';
 import 'package:ppv_app/features/splash/presentation/screens/splash_screen.dart';
 
@@ -107,6 +108,10 @@ class AppRouter {
         builder: (context, state) {
           final token = state.uri.queryParameters['token'] ?? '';
           final email = state.uri.queryParameters['email'] ?? '';
+          // Paramètres invalides → retour vers mot de passe oublié
+          if (token.length < 20 || !email.contains('@')) {
+            return const ForgotPasswordScreen();
+          }
           return ResetPasswordScreen(token: token, email: email);
         },
       ),
@@ -169,6 +174,10 @@ class AppRouter {
         path: RouteNames.kRouteForceUpdate,
         builder: (context, state) =>
             ForceUpdateScreen(data: state.extra as Map<String, dynamic>),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteCreatorConsents,
+        builder: (context, state) => const CreatorConsentsScreen(),
       ),
     ],
   );
