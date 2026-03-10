@@ -34,6 +34,28 @@ class TosProvider extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  /// Enregistre un lot de consentements (créateur post-KYC, acheteur, etc.).
+  Future<bool> acceptConsentsBatch(List<String> types) async {
+    _isLoading = true;
+    _error = null;
+    _safeNotify();
+
+    try {
+      await _repository.acceptConsentsBatch(types: types);
+      _tosAccepted = true;
+      _isLoading = false;
+      _safeNotify();
+      return true;
+    } catch (e) {
+      _error = e is ApiException ? e.message
+               : e is NetworkException ? e.message
+               : 'Une erreur inattendue est survenue.';
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    }
+  }
+
   /// Accepte les CGU pour le type donné.
   Future<bool> acceptTos(String type) async {
     _isLoading = true;

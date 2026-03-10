@@ -1,7 +1,7 @@
 name: ppv_app
 description: "SeeMi — Plateforme de monétisation de contenu visuel pour créateurs africains."
 publish_to: 'none'
-version: 1.4.6+20
+version: 1.4.7+21
 
 environment:
   sdk: ">=3.11.0 <4.0.0"
@@ -35,6 +35,9 @@ dependencies:
   flutter_jailbreak_detection: ^1.10.0
   sentry_flutter: ^9.14.0  # SECU-11 — monitoring erreurs + crashes
   local_auth: ^2.3.0       # Authentification biométrique (empreinte / Face ID)
+  just_audio: ^0.9.40      # F14 — lecture de messages vocaux
+  record: ^5.2.0           # F14 — enregistrement de messages vocaux
+  video_player: ^2.9.2     # F13 — Lecteur HLS adaptatif (HLS natif iOS/Android)
 
 dev_dependencies:
   flutter_test:

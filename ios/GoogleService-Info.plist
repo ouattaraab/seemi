@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>API_KEY</key>
+	<string>AIzaSyCKWl1mXfge-yDWiBWvVDTxKqcOa9VYnRc</string>
+	<key>GCM_SENDER_ID</key>
+	<string>83620169310</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.seemi.app</string>
+	<key>PROJECT_ID</key>
+	<string>ppv-paye-pour-voir</string>
+	<key>STORAGE_BUCKET</key>
+	<string>ppv-paye-pour-voir.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:83620169310:ios:0bf7ad15f3af792f22d6cf</string>
+</dict>
+</plist>

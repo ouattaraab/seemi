@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:video_compress/video_compress.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
@@ -36,6 +40,13 @@ class _UploadScreenState extends State<UploadScreen> {
   File? _selectedFile;
   Uint8List? _videoThumbnail;
 
+  // ── Compression vidéo ──
+  double? _compressionProgress; // 0.0–1.0 pendant la compression
+  Subscription? _compressSubscription;
+
+  // ── Hash SHA-256 (détection doublons) ──
+  String? _fileHash;
+
   // ── État upload ──
   int? _uploadedContentId;
 
@@ -49,16 +60,14 @@ class _UploadScreenState extends State<UploadScreen> {
   // ── Partage ──
   String? _shareUrl;
 
-  // ── Blur preview (polling) ──
-  Timer? _blurPollTimer;
+  // ── Blur preview (backoff exponentiel — remplace le polling fixe 2 s × 15) ──
   String? _blurPreviewUrl;
   bool _blurPolling = false;
-  int _blurPollCount = 0;
-  static const int _blurPollMaxAttempts = 15; // 30s ÷ 2s
 
   @override
   void dispose() {
-    _blurPollTimer?.cancel();
+    _compressSubscription?.unsubscribe();
+    VideoCompress.cancelCompression();
     _priceCtrl.dispose();
     super.dispose();
   }
@@ -98,12 +107,15 @@ class _UploadScreenState extends State<UploadScreen> {
     try {
       final picked = await _picker.pickImage(
         source: source,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
+        // Pas de contrainte de dimensions : résolution d'origine préservée.
+        // La compression JPEG (flutter_image_compress) réduit les octets sans redimensionner.
       );
       if (picked == null) return;
-      final file = File(picked.path);
+
+      // Compression JPEG qualité 65 — dimensions préservées, poids réduit < ~1 Mo
+      final compressed = await _compressImage(File(picked.path));
+      final file = compressed ?? File(picked.path);
+
       if (!await _validateSize(file, 10, 'La photo dépasse 10 Mo')) return;
       setState(() {
         _selectedFile = file;
@@ -117,31 +129,113 @@ class _UploadScreenState extends State<UploadScreen> {
     }
   }
 
+  /// Compresse une image en réduisant la qualité JPEG SANS modifier les dimensions.
+  /// Les métadonnées EXIF sont supprimées (confidentialité + poids).
+  /// Retourne null si la compression échoue (on envoie alors l'original).
+  Future<File?> _compressImage(File file) async {
+    try {
+      final tmpDir  = await getTemporaryDirectory();
+      final outPath = '${tmpDir.path}/seemi_compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final result  = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        outPath,
+        // 99999 : aucune limite de dimensions → les pixels d'origine sont conservés
+        minWidth:  99999,
+        minHeight: 99999,
+        quality:   65, // ~65 % qualité JPEG : bon compromis taille/rendu visuel
+        format:    CompressFormat.jpeg,
+        keepExif:  false,
+      );
+      return result != null ? File(result.path) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _pickVideo() async {
     try {
       final picked = await _picker.pickVideo(
         source: ImageSource.gallery,
-        maxDuration: const Duration(seconds: 300),
+        maxDuration: const Duration(seconds: 600), // 10 min max
       );
       if (picked == null) return;
-      final file = File(picked.path);
-      if (!await _validateSize(file, 50, 'La vidéo dépasse 50 Mo')) return;
+      final originalFile = File(picked.path);
+
+      // Validation taille brute avant compression (200 Mo absolus)
+      if (!await _validateSize(originalFile, 200, 'La vidéo dépasse 200 Mo')) {
+        return;
+      }
+
+      // 1. Extraire la miniature depuis le fichier original (vraie frame)
       final thumb = await VideoThumbnail.thumbnailData(
-        video: file.path,
+        video: originalFile.path,
         imageFormat: ImageFormat.JPEG,
-        maxWidth: 1920,
-        quality: 50,
+        maxWidth: 1280,
+        quality: 70,
       );
+
+      // 2. Calculer le hash SHA-256 du fichier ORIGINAL (avant compression)
+      //    → détection de doublon côté serveur
+      final hash = await _computeSha256(originalFile);
+
+      // Afficher l'écran de sélection avec la miniature pendant la compression
       setState(() {
-        _selectedFile = file;
-        _videoThumbnail = thumb;
+        _selectedFile    = originalFile;
+        _videoThumbnail  = thumb;
+        _fileHash        = hash;
+        _compressionProgress = 0;
       });
+
+      // 3. Compression vidéo (qualité medium, 1080p max, 30 fps)
+      _compressSubscription?.unsubscribe();
+      _compressSubscription = VideoCompress.compressProgress$.subscribe((p) {
+        if (mounted) setState(() => _compressionProgress = p / 100);
+      });
+
+      final info = await VideoCompress.compressVideo(
+        originalFile.path,
+        quality:      VideoQuality.MediumQuality,
+        includeAudio: true,
+        frameRate:    30,
+      );
+
+      _compressSubscription?.unsubscribe();
+      _compressSubscription = null;
+
+      if (!mounted) return;
+
+      final compressedFile = info?.file;
+      if (compressedFile == null) {
+        // Fallback : si la compression échoue, on envoie l'original
+        setState(() => _compressionProgress = null);
+      } else {
+        setState(() {
+          _selectedFile        = compressedFile;
+          _compressionProgress = null;
+        });
+      }
+
       await _startUpload();
     } catch (e) {
-      _showSnack(
-        'Impossible d\'accéder à la galerie vidéo. Vérifiez les permissions dans les paramètres.',
-      );
+      _compressSubscription?.unsubscribe();
+      _compressSubscription = null;
+      if (mounted) {
+        setState(() {
+          _compressionProgress = null;
+          _contentType = null;
+          _selectedFile = null;
+        });
+        _showSnack(
+          'Impossible d\'accéder à la galerie vidéo ou de compresser. Vérifiez les permissions.',
+        );
+      }
     }
+  }
+
+  /// Calcule le SHA-256 d'un fichier.
+  Future<String> _computeSha256(File file) async {
+    final bytes = await file.readAsBytes();
+    return sha256.convert(bytes).toString();
   }
 
   Future<bool> _validateSize(File file, double maxMb, String msg) async {
@@ -162,19 +256,24 @@ class _UploadScreenState extends State<UploadScreen> {
 
     bool success;
     if (_contentType == 'photo') {
-      success = await provider.uploadPhoto(_selectedFile!);
+      // Photo : upload standard avec hash pour détection doublon
+      final hash = _fileHash ?? await _computeSha256(_selectedFile!);
+      success = await provider.uploadPhoto(_selectedFile!, fileHash: hash);
     } else {
-      success = await provider.uploadVideo(_selectedFile!);
+      // Vidéo : upload chunked avec miniature + hash
+      success = await provider.uploadVideoChunked(
+        _selectedFile!,
+        thumbnail: _videoThumbnail,
+        fileHash:  _fileHash,
+      );
     }
 
     if (!mounted) return;
     if (success) {
       final contentId = provider.lastUploadedContent?.id;
-      setState(() {
-        _uploadedContentId = contentId;
-      });
+      setState(() => _uploadedContentId = contentId);
       if (contentId != null) {
-        _startBlurPolling(contentId);
+        _startBlurWithBackoff(contentId);
       }
     } else {
       _showSnack(provider.error ?? 'Erreur lors du téléchargement');
@@ -183,33 +282,24 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Future<void> _retryUpload() async {
     context.read<ContentProvider>().resetUploadState();
+    setState(() {
+      _fileHash            = null;
+      _compressionProgress = null;
+    });
     await _startUpload();
   }
 
-  // ─── Polling aperçu flou ───────────────────────────────────────────────────
+  // ─── Backoff exponentiel pour le blur ────────────────────────────────────
+  // Remplace le polling fixe 2 s × 15 (30 s) par un backoff 1→8 s (≈ 36 s max, 8 polls).
 
-  void _startBlurPolling(int contentId) {
-    _blurPollCount = 0;
+  void _startBlurWithBackoff(int contentId) {
     setState(() => _blurPolling = true);
-    _blurPollTimer?.cancel();
-    _blurPollTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-      _blurPollCount++;
-      final content =
-          await context.read<ContentProvider>().getContent(contentId);
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (content?.blurUrl != null) {
-        timer.cancel();
-        setState(() {
-          _blurPreviewUrl = content!.blurUrl;
-          _blurPolling = false;
-        });
-      } else if (_blurPollCount >= _blurPollMaxAttempts) {
-        timer.cancel();
-        setState(() => _blurPolling = false);
-      }
+    context.read<ContentProvider>().pollBlurWithBackoff(contentId).then((url) {
+      if (!mounted) return;
+      setState(() {
+        _blurPreviewUrl = url;
+        _blurPolling    = false;
+      });
     });
   }
 
@@ -287,23 +377,25 @@ class _UploadScreenState extends State<UploadScreen> {
   // ─── Reset ────────────────────────────────────────────────────────────────
 
   void _reset() {
-    _blurPollTimer?.cancel();
+    _compressSubscription?.unsubscribe();
+    _compressSubscription = null;
+    VideoCompress.cancelCompression();
     context.read<ContentProvider>().resetUploadState();
     setState(() {
-      _contentType = null;
-      _selectedFile = null;
-      _videoThumbnail = null;
-      _uploadedContentId = null;
-      _selectedPriceFcfa = null;
+      _contentType         = null;
+      _selectedFile        = null;
+      _videoThumbnail      = null;
+      _compressionProgress = null;
+      _fileHash            = null;
+      _uploadedContentId   = null;
+      _selectedPriceFcfa   = null;
       _priceCtrl.clear();
-      _tosAccepted = false;
-      _isViewOnce = false;
-      _publishError = null;
-      _shareUrl = null;
-      _blurPollTimer = null;
-      _blurPreviewUrl = null;
-      _blurPolling = false;
-      _blurPollCount = 0;
+      _tosAccepted         = false;
+      _isViewOnce          = false;
+      _publishError        = null;
+      _shareUrl            = null;
+      _blurPreviewUrl      = null;
+      _blurPolling         = false;
     });
   }
 
@@ -350,8 +442,10 @@ class _UploadScreenState extends State<UploadScreen> {
       title = 'Lien généré !';
     } else if (_uploadedContentId != null) {
       title = 'Définir le prix';
+    } else if (_compressionProgress != null) {
+      title = 'Compression en cours...';
     } else if (_selectedFile != null) {
-      title = 'Chargement en cours...';
+      title = 'Upload en cours...';
     } else {
       title = 'Publier un contenu';
     }
@@ -479,7 +573,7 @@ class _UploadScreenState extends State<UploadScreen> {
               child: _TypeCard(
                 icon: Icons.videocam_rounded,
                 label: 'Vidéo',
-                subtitle: '50 Mo max',
+                subtitle: '200 Mo · Auto-compressé',
                 color: AppColors.kPrimaryDark,
                 onTap: _onVideoTypeTapped,
               ),
@@ -552,8 +646,47 @@ class _UploadScreenState extends State<UploadScreen> {
                         ),
                       ),
 
-                    // Overlay chargement
-                    if (provider.isLoading) ...[
+                    // ── Overlay compression (avant upload) ──
+                    if (_compressionProgress != null) ...[
+                      Container(color: Colors.black.withValues(alpha: 0.65)),
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 52,
+                              height: 52,
+                              child: CircularProgressIndicator(
+                                value: _compressionProgress,
+                                color: Colors.orangeAccent,
+                                backgroundColor:
+                                    Colors.white.withValues(alpha: 0.25),
+                                strokeWidth: 4,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _compressionProgress! > 0
+                                  ? 'Compression ${(_compressionProgress! * 100).toInt()}%'
+                                  : 'Préparation...',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Optimisation de la vidéo...',
+                              style: TextStyle(color: Colors.white70, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // ── Overlay upload (après compression) ──
+                    if (provider.isLoading && _compressionProgress == null) ...[
                       Container(
                           color: Colors.black.withValues(alpha: 0.55)),
                       Center(
@@ -574,8 +707,8 @@ class _UploadScreenState extends State<UploadScreen> {
                             const SizedBox(height: 16),
                             Text(
                               provider.uploadProgress != null
-                                  ? '${(provider.uploadProgress! * 100).toInt()}%'
-                                  : 'Chargement...',
+                                  ? 'Upload ${(provider.uploadProgress! * 100).toInt()}%'
+                                  : 'Envoi...',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
@@ -708,17 +841,27 @@ class _UploadScreenState extends State<UploadScreen> {
           ),
         ),
 
-        // Barre de progression
-        if (provider.isLoading && provider.uploadProgress != null) ...[
+        // Barre de progression (compression ou upload)
+        if (_compressionProgress != null || (provider.isLoading && provider.uploadProgress != null)) ...[
           const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: provider.uploadProgress,
-              color: AppColors.kAccent,
+              value: _compressionProgress ?? provider.uploadProgress,
+              color: _compressionProgress != null
+                  ? Colors.orangeAccent
+                  : AppColors.kAccent,
               backgroundColor: AppColors.kBorder,
               minHeight: 4,
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _compressionProgress != null
+                ? 'Compression en cours...'
+                : 'Upload en cours...',
+            style: AppTextStyles.kCaption.copyWith(color: AppColors.kTextTertiary),
+            textAlign: TextAlign.center,
           ),
         ],
       ],
@@ -1043,25 +1186,19 @@ class _UploadScreenState extends State<UploadScreen> {
                       style: AppTextStyles.kBodyMedium
                           .copyWith(color: AppColors.kTextSecondary),
                       children: const [
-                        TextSpan(text: "J'accepte les "),
+                        TextSpan(text: 'Je certifie être '),
                         TextSpan(
-                          text: 'conditions d\'utilisation',
+                          text: 'l\'auteur ou titulaire des droits',
                           style: TextStyle(
                             color: AppColors.kPrimary,
                             fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
                           ),
                         ),
-                        TextSpan(text: ' et la '),
                         TextSpan(
-                          text: 'politique de confidentialité',
-                          style: TextStyle(
-                            color: AppColors.kPrimary,
-                            fontWeight: FontWeight.w600,
-                            decoration: TextDecoration.underline,
-                          ),
+                          text: ' sur ce contenu, que toute personne y apparaissant est '
+                              'majeure et a consenti, et j\'assume l\'entière '
+                              'responsabilité de sa publication.',
                         ),
-                        TextSpan(text: ' de SeeMi.'),
                       ],
                     ),
                   ),

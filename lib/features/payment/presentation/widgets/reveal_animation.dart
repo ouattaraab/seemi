@@ -62,9 +62,8 @@ class _RevealAnimationState extends State<RevealAnimation>
       },
       child: Image.network(
         widget.originalUrl,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         width: double.infinity,
-        height: double.infinity,
         errorBuilder: (_, __, ___) => const Center(
           child: Icon(Icons.broken_image_outlined, color: Colors.grey, size: 64),
         ),

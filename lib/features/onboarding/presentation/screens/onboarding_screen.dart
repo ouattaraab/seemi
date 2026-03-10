@@ -35,7 +35,7 @@ const _pages = [
     icon: Icons.account_balance_wallet_outlined,
     title: 'Encaisse directement',
     description:
-        'Les paiements arrivent sur ton portefeuille SeeMi. Retire sur Mobile Money ou compte bancaire.',
+        'Tes gains de vente s\'affichent dans ton tableau de bord. Retire directement sur Mobile Money ou compte bancaire.',
   ),
 ];
 

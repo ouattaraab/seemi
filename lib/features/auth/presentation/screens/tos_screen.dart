@@ -170,7 +170,19 @@ class TosScreen extends StatelessWidget {
         'Article 5 – Protection des données\n\n'
         'Les données personnelles sont traitées conformément à notre '
         'politique de confidentialité. Les données KYC sont chiffrées '
-        'et stockées de manière sécurisée.',
+        'et stockées de manière sécurisée.\n\n'
+        'Article 6 – Gestion financière et nature du solde\n\n'
+        'SeeMi ne détient à aucun moment les fonds des utilisateurs. '
+        "L'intégralité des paiements est collectée et sécurisée par "
+        'Paystack, prestataire de paiement agréé. '
+        'Le solde affiché dans votre tableau de bord représente '
+        'uniquement le cumul comptable de vos gains nets après '
+        'commission. Il constitue un indicateur de revenus, '
+        'non un dépôt de fonds ou un portefeuille électronique '
+        'au sens réglementaire. Les reversements sont effectués '
+        'via les réseaux Mobile Money (Orange Money, MTN MoMo, '
+        'Wave) ou par virement bancaire, sur le compte que vous '
+        'avez enregistré, sous réserve de validation administrative.',
         style: TextStyle(
           fontFamily: 'Plus Jakarta Sans',
           fontSize: 14,

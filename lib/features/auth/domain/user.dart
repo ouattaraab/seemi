@@ -11,6 +11,7 @@ class User {
   final DateTime? kycSubmittedAt;
   final DateTime? acceptedTosAt;
   final String? tosVersion;
+  final DateTime? creatorConsentsAcceptedAt;
   final bool isActive;
   final DateTime? createdAt;
 
@@ -26,6 +27,7 @@ class User {
     this.kycSubmittedAt,
     this.acceptedTosAt,
     this.tosVersion,
+    this.creatorConsentsAcceptedAt,
     required this.isActive,
     this.createdAt,
   });

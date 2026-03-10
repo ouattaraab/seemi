@@ -1,13 +1,14 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/widgets/seemi_logo.dart';
 import 'package:ppv_app/features/auth/presentation/auth_provider.dart';
-import 'package:ppv_app/features/auth/presentation/tos_provider.dart';
 
 /// Écran d'inscription — email + mot de passe.
 class RegisterScreen extends StatefulWidget {
@@ -30,7 +31,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _obscurePassword        = true;
   bool _obscurePasswordConfirm = true;
-  bool _acceptedTerms          = false;
+  bool _consentCgu             = false;
+  bool _consentAge             = false;
+  bool _consentData            = false;
+  bool _consentMarketing       = false;
 
   @override
   void dispose() {
@@ -72,10 +76,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _onRegister() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_acceptedTerms) {
+    if (!_consentCgu || !_consentAge || !_consentData) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Veuillez accepter les termes et conditions.'),
+          content: Text('Veuillez cocher les 3 cases obligatoires pour continuer.'),
           backgroundColor: AppColors.kError,
         ),
       );
@@ -92,14 +96,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       password:             _passwordCtrl.text,
       passwordConfirmation: _passwordConfirmCtrl.text,
       referralCode:         _referralCodeCtrl.text.trim().isEmpty ? null : _referralCodeCtrl.text.trim().toUpperCase(),
+      consentCgu:           _consentCgu,
+      consentAge:           _consentAge,
+      consentData:          _consentData,
+      consentMarketing:     _consentMarketing,
     );
 
     if (!mounted) return;
 
     if (success) {
-      final tosProvider = context.read<TosProvider>();
-      await tosProvider.acceptTos('creator');
-      if (!mounted) return;
       context.go(RouteNames.kRouteHome);
     }
   }
@@ -274,8 +279,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                           const SizedBox(height: AppSpacing.kSpaceLg),
 
-                          // ── CGU ──
-                          _buildTermsRow(),
+                          // ── Consentements ──
+                          _buildConsentsSection(),
 
                           // ── Erreur API ──
                           if (authProvider.error != null) ...[
@@ -421,56 +426,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ─── CGU ─────────────────────────────────────────────────────────────────
+  // ─── Consentements ───────────────────────────────────────────────────────
 
-  Widget _buildTermsRow() {
-    return GestureDetector(
-      onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: _acceptedTerms ? AppColors.kPrimary : Colors.transparent,
-              border: Border.all(
-                color: _acceptedTerms ? AppColors.kPrimary : AppColors.kBorder,
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: _acceptedTerms
-                ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
-                : null,
+  Widget _buildConsentsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'CONSENTEMENTS',
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: AppColors.kTextTertiary,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: RichText(
-              text: const TextSpan(
-                style: TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontSize: 13,
-                  color: AppColors.kTextSecondary,
-                ),
-                children: [
-                  TextSpan(text: "J'accepte les "),
-                  TextSpan(
-                    text: 'termes et conditions',
-                    style: TextStyle(
-                      color: AppColors.kPrimary,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                  TextSpan(text: " d'utilisation de SeeMi."),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        _ConsentRow(
+          value: _consentCgu,
+          onChanged: (v) => setState(() => _consentCgu = v),
+          required: true,
+          text: "J'ai lu, compris et j'accepte les ",
+          linkText: 'CGU et la Politique de Confidentialité',
+          suffix: ' de SeeMi.',
+          onLinkTap: () => _openUrl('https://seemi.click/cgu'),
+        ),
+        const SizedBox(height: 10),
+        _ConsentRow(
+          value: _consentAge,
+          onChanged: (v) => setState(() => _consentAge = v),
+          required: true,
+          text: "Je certifie sur l'honneur être âgé(e) d'au moins ",
+          linkText: '18 ans',
+          suffix: ' à la date d\'inscription.',
+        ),
+        const SizedBox(height: 10),
+        _ConsentRow(
+          value: _consentData,
+          onChanged: (v) => setState(() => _consentData = v),
+          required: true,
+          text: "J'autorise SeeMi à collecter et traiter mes ",
+          linkText: 'données personnelles',
+          suffix: ' conformément à sa Politique de Confidentialité.',
+          onLinkTap: () => _openUrl('https://seemi.click/confidentialite'),
+        ),
+        const SizedBox(height: 10),
+        _ConsentRow(
+          value: _consentMarketing,
+          onChanged: (v) => setState(() => _consentMarketing = v),
+          required: false,
+          text: "J'accepte de recevoir des ",
+          linkText: 'communications marketing',
+          suffix: ' de SeeMi. (optionnel)',
+        ),
+      ],
     );
   }
 
@@ -799,6 +809,102 @@ class _PhoneField extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+// ─── _ConsentRow ──────────────────────────────────────────────────────────────
+
+Future<void> _openUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+  }
+}
+
+class _ConsentRow extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final bool required;
+  final String text;
+  final String linkText;
+  final String suffix;
+  final VoidCallback? onLinkTap;
+
+  const _ConsentRow({
+    required this.value,
+    required this.onChanged,
+    required this.required,
+    required this.text,
+    required this.linkText,
+    required this.suffix,
+    this.onLinkTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final linkRecognizer = onLinkTap != null
+        ? (TapGestureRecognizer()..onTap = onLinkTap)
+        : null;
+
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: value
+                  ? AppColors.kPrimary
+                  : Colors.transparent,
+              border: Border.all(
+                color: value
+                    ? AppColors.kPrimary
+                    : (required ? AppColors.kBorder : AppColors.kBorder),
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: value
+                ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 12.5,
+                  color: AppColors.kTextSecondary,
+                  height: 1.4,
+                ),
+                children: [
+                  if (required)
+                    const TextSpan(
+                      text: '* ',
+                      style: TextStyle(color: AppColors.kError, fontWeight: FontWeight.w700),
+                    ),
+                  TextSpan(text: text),
+                  TextSpan(
+                    text: linkText,
+                    recognizer: linkRecognizer,
+                    style: TextStyle(
+                      color: AppColors.kPrimary,
+                      fontWeight: FontWeight.w600,
+                      decoration: onLinkTap != null ? TextDecoration.underline : TextDecoration.none,
+                    ),
+                  ),
+                  TextSpan(text: suffix),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

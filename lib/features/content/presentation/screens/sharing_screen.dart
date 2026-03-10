@@ -10,13 +10,36 @@ import 'package:ppv_app/features/sharing/presentation/contact_picker_sheet.dart'
 /// Écran de confirmation affiché après publication — lien + actions de partage.
 class SharingScreen extends StatelessWidget {
   final String shareUrl;
+  final String? blurPathUrl;
+  final int priceFcfa;
+  final String creatorName;
 
-  const SharingScreen({super.key, required this.shareUrl});
+  const SharingScreen({
+    super.key,
+    required this.shareUrl,
+    this.blurPathUrl,
+    this.priceFcfa = 0,
+    this.creatorName = 'ce créateur',
+  });
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
   Future<void> _share(BuildContext context) async {
     await context.read<ShareRepository>().shareContent(shareUrl);
+  }
+
+  Future<void> _shareToWhatsApp(BuildContext context) async {
+    final success = await context.read<ShareRepository>().shareToWhatsApp(
+      shareUrl: shareUrl,
+      priceFcfa: priceFcfa,
+      creatorName: creatorName,
+    );
+    if (!context.mounted) return;
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('WhatsApp n\'est pas installé sur cet appareil.')),
+      );
+    }
   }
 
   Future<void> _copyLink(BuildContext context) async {
@@ -273,6 +296,27 @@ class SharingScreen extends StatelessWidget {
   Widget _buildActions(BuildContext context) {
     return Column(
       children: [
+        // Partager sur WhatsApp
+        SizedBox(
+          width: double.infinity,
+          height: AppSpacing.kButtonHeight,
+          child: FilledButton.icon(
+            onPressed: () => _shareToWhatsApp(context),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            icon: const Icon(Icons.chat_rounded, size: 18),
+            label: const Text('Partager sur WhatsApp'),
+          ),
+        ),
+        const SizedBox(height: 10),
+
         // Partager
         SizedBox(
           width: double.infinity,

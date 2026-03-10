@@ -10,6 +10,54 @@ class AuthRemoteDataSource {
 
   AuthRemoteDataSource({required Dio dio}) : _dio = dio;
 
+  // Options partagées pour les endpoints publics (sans Bearer token).
+  // LiteSpeed/Hostinger ne parse pas php://input (JSON) sans Authorization header.
+  // form-urlencoded est lu nativement par PHP via $_POST, contourne le problème.
+  static final _formUrlEncoded = Options(contentType: 'application/x-www-form-urlencoded');
+
+  /// Parse une DioException en AuthApiException avec messages en français.
+  AuthApiException _parseAuthError(DioException e) {
+    final data = e.response?.data;
+    if (data is Map) {
+      final code    = data['code'] as String?;
+      final message = data['message'] as String? ?? 'Erreur serveur';
+      return AuthApiException(message: message, code: code);
+    }
+    // Fallback sur le header retry-after si le corps n'est pas JSON
+    if (e.response?.statusCode == 429) {
+      final retryAfter = e.response?.headers.value('retry-after');
+      final secs = retryAfter != null ? int.tryParse(retryAfter) : null;
+      final msg = secs != null
+          ? 'Trop de tentatives. Réessayez dans $secs secondes.'
+          : 'Trop de tentatives. Réessayez dans quelques instants.';
+      return AuthApiException(message: msg, code: 'TOO_MANY_ATTEMPTS');
+    }
+    // Messages explicites selon le type d'erreur réseau
+    return switch (e.type) {
+      DioExceptionType.connectionTimeout ||
+      DioExceptionType.sendTimeout ||
+      DioExceptionType.receiveTimeout =>
+        const AuthApiException(
+          message: 'Le serveur met trop de temps à répondre. Vérifiez votre connexion internet.',
+          code: 'TIMEOUT',
+        ),
+      DioExceptionType.connectionError =>
+        const AuthApiException(
+          message: 'Impossible de joindre le serveur. Vérifiez votre connexion internet.',
+          code: 'NO_CONNECTION',
+        ),
+      DioExceptionType.badCertificate =>
+        const AuthApiException(
+          message: 'Certificat de sécurité invalide. Contactez le support.',
+          code: 'BAD_CERTIFICATE',
+        ),
+      _ => const AuthApiException(
+          message: 'Une erreur inattendue est survenue. Réessayez.',
+          code: 'UNKNOWN',
+        ),
+    };
+  }
+
   /// Inscrit un nouvel utilisateur avec email + mot de passe.
   Future<Map<String, dynamic>> registerWithEmailPassword({
     required String firstName,
@@ -20,10 +68,15 @@ class AuthRemoteDataSource {
     required String password,
     required String passwordConfirmation,
     String? referralCode,
+    required bool consentCgu,
+    required bool consentAge,
+    required bool consentData,
+    bool consentMarketing = false,
   }) async {
     try {
       final response = await _dio.post(
         '/auth/register',
+        options: _formUrlEncoded,
         data: {
           'first_name':             firstName,
           'last_name':              lastName,
@@ -33,6 +86,10 @@ class AuthRemoteDataSource {
           'password':               password,
           'password_confirmation':  passwordConfirmation,
           if (referralCode != null && referralCode.isNotEmpty) 'referral_code': referralCode,
+          'consent_cgu':      consentCgu ? '1' : '0',
+          'consent_age':      consentAge ? '1' : '0',
+          'consent_data':     consentData ? '1' : '0',
+          'consent_marketing': consentMarketing ? '1' : '0',
         },
       );
       return response.data as Map<String, dynamic>;
@@ -43,12 +100,11 @@ class AuthRemoteDataSource {
         if (errors is Map && errors.isNotEmpty) {
           final firstField = errors.values.first;
           final message = firstField is List ? firstField.first as String : firstField.toString();
-          throw AuthApiException(message: message);
+          throw AuthApiException(message: message, code: responseData['code'] as String?);
         }
-        final message = responseData['message'] as String? ?? 'Erreur serveur';
-        throw AuthApiException(message: message);
+        throw _parseAuthError(e);
       }
-      throw const AuthApiException(message: 'Erreur de connexion au serveur');
+      throw _parseAuthError(e);
     }
   }
 
@@ -60,6 +116,7 @@ class AuthRemoteDataSource {
     try {
       final response = await _dio.post(
         '/auth/login',
+        options: _formUrlEncoded,
         data: {
           'email_or_phone': emailOrPhone,
           'password':       password,
@@ -67,13 +124,7 @@ class AuthRemoteDataSource {
       );
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
-      final responseData = e.response?.data;
-      if (responseData is Map) {
-        final code    = responseData['code'] as String?;
-        final message = responseData['message'] as String? ?? 'Erreur serveur';
-        throw AuthApiException(message: message, code: code);
-      }
-      throw const AuthApiException(message: 'Erreur de connexion au serveur');
+      throw _parseAuthError(e);
     }
   }
 
@@ -107,6 +158,19 @@ class AuthRemoteDataSource {
     try {
       final response = await _dio.post('/profile/kyc', data: formData);
       return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      final message = responseData is Map
+          ? responseData['message'] as String? ?? 'Erreur serveur'
+          : 'Erreur de connexion au serveur';
+      throw Exception(message);
+    }
+  }
+
+  /// Enregistre un lot de consentements (créateur post-KYC, acheteur, etc.).
+  Future<void> acceptConsentsBatch({required List<String> types}) async {
+    try {
+      await _dio.post('/auth/accept-tos-batch', data: {'types': types});
     } on DioException catch (e) {
       final responseData = e.response?.data;
       final message = responseData is Map
@@ -216,7 +280,7 @@ class AuthRemoteDataSource {
   /// Envoie un email de réinitialisation de mot de passe.
   Future<void> forgotPassword({required String email}) async {
     try {
-      await _dio.post('/auth/forgot-password', data: {'email': email});
+      await _dio.post('/auth/forgot-password', options: _formUrlEncoded, data: {'email': email});
     } on DioException catch (e) {
       final responseData = e.response?.data;
       final message = responseData is Map
@@ -234,7 +298,7 @@ class AuthRemoteDataSource {
     required String passwordConfirmation,
   }) async {
     try {
-      await _dio.post('/auth/reset-password', data: {
+      await _dio.post('/auth/reset-password', options: _formUrlEncoded, data: {
         'email':                 email,
         'token':                 token,
         'password':              password,

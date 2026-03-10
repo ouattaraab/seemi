@@ -1,13 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ppv_app/core/routing/route_names.dart';
+import 'package:ppv_app/core/storage/secure_storage_service.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/features/content/data/public_content_repository.dart';
 import 'package:ppv_app/features/content/presentation/content_detail_provider.dart';
+import 'package:ppv_app/features/content/presentation/widgets/hls_video_player.dart';
 import 'package:ppv_app/features/payment/presentation/payment_provider.dart';
 import 'package:ppv_app/features/payment/presentation/widgets/download_button.dart';
 import 'package:ppv_app/features/payment/presentation/widgets/reveal_animation.dart';
+import 'package:ppv_app/features/payment/presentation/widgets/tip_bottom_sheet.dart';
 
 /// Écran de détail de contenu — affiché via deep link (/c/:slug).
 ///
@@ -25,6 +32,22 @@ class ContentDetailScreen extends StatefulWidget {
 
 class _ContentDetailScreenState extends State<ContentDetailScreen>
     with WidgetsBindingObserver {
+  bool _dismissedIncentive = false;
+
+  Future<void> _handleBack() async {
+    try {
+      final hasToken = await SecureStorageService().hasTokens();
+      if (!mounted) return;
+      if (hasToken) {
+        context.go(RouteNames.kRouteHome);
+      } else {
+        context.go(RouteNames.kRouteOnboarding);
+      }
+    } catch (_) {
+      if (mounted) context.go(RouteNames.kRouteOnboarding);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -98,7 +121,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
       backgroundColor: AppColors.kBgBase,
       elevation: 0,
       centerTitle: true,
-      automaticallyImplyLeading: false,
+      leading: IconButton(
+        icon: const Icon(Icons.close_rounded, color: AppColors.kTextSecondary),
+        onPressed: _handleBack,
+        tooltip: 'Fermer',
+      ),
       title: const Text.rich(
         TextSpan(
           style: TextStyle(
@@ -180,6 +207,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
 
               const SizedBox(height: 24),
 
+              // ── Banner inscription post-paiement ─────────────────────
+              if (paymentProvider.isPaid && !_dismissedIncentive) ...[
+                _SignUpIncentiveBanner(
+                  onSignUp: () => context.go(RouteNames.kRouteRegister),
+                  onDismiss: () =>
+                      setState(() => _dismissedIncentive = true),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // ── Footer branding ──────────────────────────────────────
               const Text(
                 'Propulsé par SeeMi',
@@ -204,12 +241,41 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
     PublicContentData content,
     PaymentProvider paymentProvider,
   ) {
-    if (paymentProvider.isPaid && paymentProvider.originalUrl != null) {
-      return AspectRatio(
-        aspectRatio: 1,
-        child: RevealAnimation(originalUrl: paymentProvider.originalUrl!),
-      );
+    if (paymentProvider.isPaid) {
+      // F13 — Résolution en cours : afficher un indicateur de chargement
+      if (paymentProvider.isResolvingMedia) {
+        return const AspectRatio(
+          aspectRatio: 16 / 9,
+          child: ColoredBox(
+            color: Colors.black,
+            child: Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+          ),
+        );
+      }
+
+      // F13 — Média résolu : afficher selon le type
+      if (paymentProvider.resolvedMediaUrl != null) {
+        if (paymentProvider.mediaType == 'hls') {
+          return HlsVideoPlayer(hlsUrl: paymentProvider.resolvedMediaUrl!);
+        }
+        // Type 'r2' ou non renseigné : comportement existant (image)
+        return ColoredBox(
+          color: Colors.black,
+          child: RevealAnimation(originalUrl: paymentProvider.resolvedMediaUrl!),
+        );
+      }
+
+      // URL signée disponible mais résolution pas encore lancée : fallback image
+      if (paymentProvider.originalUrl != null) {
+        return ColoredBox(
+          color: Colors.black,
+          child: RevealAnimation(originalUrl: paymentProvider.originalUrl!),
+        );
+      }
     }
+
     return _BlurredImageWithLock(
       blurPathUrl: content.blurPathUrl,
       priceFcfa: content.priceFcfa,
@@ -330,30 +396,73 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
 
           const SizedBox(height: 14),
 
-          // ── Description ──────────────────────────────────────────────
+          // ── Description + Flash badge ─────────────────────────────────
+          if (!paymentProvider.isPaid && content.isFlashActive && content.flashEndsAt != null) ...[
+            _FlashCountdown(endsAt: content.flashEndsAt!),
+            const SizedBox(height: 8),
+          ],
           Text(
             paymentProvider.isPaid
                 ? 'Contenu débloqué avec succès !'
-                : 'Cette ${content.type == 'video' ? 'vidéo' : 'photo'} est verrouillée. Payez ${content.priceFcfa} FCFA pour la voir.',
+                : content.isFlashActive
+                    ? 'FLASH : ${content.priceFcfa} FCFA (au lieu de ${content.originalPriceFcfa} FCFA)'
+                    : content.isPwyw
+                        ? 'Payez ce que vous voulez — minimum ${content.pwywMinimumPriceFcfa} FCFA.'
+                        : 'Cette ${content.type == 'video' ? 'vidéo' : 'photo'} est verrouillée. Payez ${content.priceFcfa} FCFA pour la voir.',
             style: TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontSize: 14,
               fontWeight: FontWeight.w400,
               color: paymentProvider.isPaid
                   ? AppColors.kTextPrimary
-                  : AppColors.kTextSecondary,
+                  : content.isFlashActive
+                      ? const Color(0xFFFF6B00)
+                      : AppColors.kTextSecondary,
               height: 1.55,
             ),
           ),
 
-          // ── Téléchargement ───────────────────────────────────────────
+          // ── Social proof badges ──────────────────────────────────────
+          if (!paymentProvider.isPaid)
+            _buildSocialProofBadge(content.purchaseCount, content.isTrending),
+
+          // ── Téléchargement + Pourboire ────────────────────────────────
+          // F13 — Pas de bouton téléchargement pour les vidéos HLS (streaming)
           if (paymentProvider.isPaid &&
-              paymentProvider.originalUrl != null) ...[
+              paymentProvider.resolvedMediaUrl != null &&
+              paymentProvider.mediaType != 'hls') ...[
             const SizedBox(height: 16),
             DownloadButton(
-              downloadUrl: paymentProvider.originalUrl!,
+              downloadUrl: paymentProvider.resolvedMediaUrl!,
               filename:
                   '${content.slug}.${content.type == 'video' ? 'mp4' : 'jpg'}',
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: AppColors.kBgSurface,
+                  shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(24))),
+                  builder: (_) => TipBottomSheet(
+                    slug: content.slug,
+                    creatorName: content.creatorName,
+                  ),
+                ),
+                icon: const Icon(Icons.favorite_border_rounded,
+                    size: 16, color: AppColors.kSuccess),
+                label: const Text(
+                  'Laisser un pourboire',
+                  style: TextStyle(
+                    color: AppColors.kSuccess,
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
           ],
 
@@ -384,15 +493,27 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                   context,
                   content.slug,
                   content.priceFcfa,
+                  isPwyw: content.isPwyw,
+                  pwywMin: content.pwywMinimumPriceFcfa,
                 ),
                 icon: const Icon(Icons.lock_open_rounded, size: 20),
-                label: Text('Débloquer · ${content.priceFcfa} FCFA'),
+                label: Text(
+                  content.isFlashActive
+                      ? 'Flash · ${content.priceFcfa} FCFA'
+                      : content.isPwyw
+                          ? 'Payer ce que tu veux'
+                          : 'Débloquer · ${content.priceFcfa} FCFA',
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.kAccent,
+                  backgroundColor: content.isFlashActive
+                      ? const Color(0xFFFF6B00)
+                      : AppColors.kAccent,
                   foregroundColor: Colors.white,
                   elevation: 4,
-                  shadowColor:
-                      AppColors.kAccent.withValues(alpha: 0.35),
+                  shadowColor: (content.isFlashActive
+                          ? const Color(0xFFFF6B00)
+                          : AppColors.kAccent)
+                      .withValues(alpha: 0.35),
                   shape: const StadiumBorder(),
                   textStyle: const TextStyle(
                     fontFamily: 'Plus Jakarta Sans',
@@ -403,6 +524,72 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  // ─── Social proof badges ──────────────────────────────────────────────────
+
+  Widget _buildSocialProofBadge(int purchaseCount, bool isTrending) {
+    if (purchaseCount <= 0 && !isTrending) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: [
+          if (purchaseCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.kSuccess.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.kSuccess.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_open_rounded, size: 12, color: AppColors.kSuccess),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$purchaseCount personne${purchaseCount > 1 ? 's ont' : ' a'} débloqué',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.kSuccess,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (isTrending)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B00).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFF6B00).withValues(alpha: 0.25)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.local_fire_department_rounded, size: 12, color: Color(0xFFFF6B00)),
+                  SizedBox(width: 4),
+                  Text(
+                    'Tendance',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFFF6B00),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -552,11 +739,18 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
   // ─── Dialog paiement ──────────────────────────────────────────────────────
 
   void _showPaymentDialog(
-      BuildContext context, String slug, int priceFcfa) {
+    BuildContext context,
+    String slug,
+    int priceFcfa, {
+    bool isPwyw = false,
+    int pwywMin = 0,
+  }) {
     context.read<PaymentProvider>().reset();
 
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
+    final pwywController = TextEditingController(
+        text: isPwyw ? '$pwywMin' : '');
     final formKey = GlobalKey<FormState>();
     final paymentProvider = context.read<PaymentProvider>();
 
@@ -612,9 +806,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                       const SizedBox(height: 20),
 
                       // Titre
-                      const Text(
-                        'Débloquer le contenu',
-                        style: TextStyle(
+                      Text(
+                        isPwyw
+                            ? 'Payer ce que vous voulez'
+                            : 'Débloquer le contenu',
+                        style: const TextStyle(
                           fontFamily: 'Plus Jakarta Sans',
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -625,31 +821,61 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                       ),
                       const SizedBox(height: 8),
 
-                      // Prix badge
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color:
-                                AppColors.kAccent.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(
-                                AppSpacing.kRadiusPill),
-                            border: Border.all(
-                                color: AppColors.kAccent
-                                    .withValues(alpha: 0.25)),
-                          ),
-                          child: Text(
-                            '$priceFcfa FCFA',
-                            style: const TextStyle(
-                              fontFamily: 'Plus Jakarta Sans',
-                              color: AppColors.kAccentDark,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                      // Prix badge (non PWYW)
+                      if (!isPwyw)
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.kAccent
+                                  .withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(
+                                  AppSpacing.kRadiusPill),
+                              border: Border.all(
+                                  color: AppColors.kAccent
+                                      .withValues(alpha: 0.25)),
+                            ),
+                            child: Text(
+                              '$priceFcfa FCFA',
+                              style: const TextStyle(
+                                fontFamily: 'Plus Jakarta Sans',
+                                color: AppColors.kAccentDark,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ),
-                      ),
+
+                      // Champ PWYW
+                      if (isPwyw) ...[
+                        Center(
+                          child: Text(
+                            'Minimum $pwywMin FCFA',
+                            style: const TextStyle(
+                              fontFamily: 'Plus Jakarta Sans',
+                              fontSize: 13,
+                              color: AppColors.kTextSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _SheetPillField(
+                          controller: pwywController,
+                          hintText: 'Montant que vous souhaitez payer (FCFA)',
+                          prefixIcon: Icons.monetization_on_outlined,
+                          keyboardType: TextInputType.number,
+                          validator: (v) {
+                            final val = int.tryParse(v?.trim() ?? '');
+                            if (val == null || val < pwywMin) {
+                              return 'Montant minimum : $pwywMin FCFA';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+
                       const SizedBox(height: 24),
 
                       // Email
@@ -713,6 +939,14 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                                   if (!formKey.currentState!.validate()) {
                                     return;
                                   }
+                                  int? buyerAmt;
+                                  if (isPwyw) {
+                                    final val = int.tryParse(
+                                        pwywController.text.trim());
+                                    if (val != null) {
+                                      buyerAmt = val * 100;
+                                    }
+                                  }
                                   await consumerCtx
                                       .read<PaymentProvider>()
                                       .initiatePayment(
@@ -725,6 +959,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                                             ? null
                                             : phoneController.text
                                                 .trim(),
+                                        buyerAmount: buyerAmt,
                                       );
                                 },
                           icon: provider.isLoading
@@ -769,6 +1004,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
     ).whenComplete(() {
       emailController.dispose();
       phoneController.dispose();
+      pwywController.dispose();
     });
   }
 }
@@ -1048,6 +1284,179 @@ class _SheetPillField extends StatelessWidget {
         ),
         contentPadding: const EdgeInsets.symmetric(
             horizontal: 20, vertical: 18),
+      ),
+    );
+  }
+}
+
+// ─── _SignUpIncentiveBanner ───────────────────────────────────────────────────
+
+class _SignUpIncentiveBanner extends StatelessWidget {
+  final VoidCallback onSignUp;
+  final VoidCallback onDismiss;
+
+  const _SignUpIncentiveBanner({
+    required this.onSignUp,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.kAccent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
+        border: Border.all(color: AppColors.kAccent.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.kAccent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.person_add_rounded,
+                  color: AppColors.kAccent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Retrouvez vos achats',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.kTextPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Créez un compte gratuit pour accéder à nouveau à ce contenu à tout moment.',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 13,
+                        color: AppColors.kTextSecondary,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ElevatedButton.icon(
+            onPressed: onSignUp,
+            icon: const Icon(Icons.person_add_rounded, size: 18),
+            label: const Text('Créer mon compte'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.kAccent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: const StadiumBorder(),
+              textStyle: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Center(
+            child: TextButton(
+              onPressed: onDismiss,
+              child: const Text(
+                'Plus tard',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 12,
+                  color: AppColors.kTextTertiary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── _FlashCountdown ──────────────────────────────────────────────────────────
+
+class _FlashCountdown extends StatefulWidget {
+  final DateTime endsAt;
+  const _FlashCountdown({required this.endsAt});
+  @override
+  State<_FlashCountdown> createState() => _FlashCountdownState();
+}
+
+class _FlashCountdownState extends State<_FlashCountdown> {
+  late Timer _timer;
+  Duration _remaining = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _update();
+    _timer = Timer.periodic(
+        const Duration(seconds: 1), (_) => _update());
+  }
+
+  void _update() {
+    final r = widget.endsAt.difference(DateTime.now());
+    if (mounted) {
+      setState(() => _remaining = r.isNegative ? Duration.zero : r);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_remaining.inSeconds <= 0) return const SizedBox.shrink();
+    final h = _remaining.inHours.toString().padLeft(2, '0');
+    final m = (_remaining.inMinutes % 60).toString().padLeft(2, '0');
+    final s = (_remaining.inSeconds % 60).toString().padLeft(2, '0');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF6B00).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: const Color(0xFFFF6B00).withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.local_fire_department_rounded,
+              size: 13, color: Color(0xFFFF6B00)),
+          const SizedBox(width: 4),
+          Text(
+            'Flash · $h:$m:$s',
+            style: const TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFFF6B00),
+            ),
+          ),
+        ],
       ),
     );
   }

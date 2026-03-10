@@ -14,6 +14,7 @@ class UserModel extends User {
     super.kycSubmittedAt,
     super.acceptedTosAt,
     super.tosVersion,
+    super.creatorConsentsAcceptedAt,
     required super.isActive,
     super.createdAt,
   });
@@ -35,6 +36,9 @@ class UserModel extends User {
           ? DateTime.parse(json['accepted_tos_at'] as String)
           : null,
       tosVersion: json['tos_version'] as String?,
+      creatorConsentsAcceptedAt: json['creator_consents_accepted_at'] != null
+          ? DateTime.parse(json['creator_consents_accepted_at'] as String)
+          : null,
       isActive: json['is_active'] as bool,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)

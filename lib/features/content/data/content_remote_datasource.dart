@@ -224,6 +224,22 @@ class ContentRemoteDataSource {
     }
   }
 
+  /// Met à jour un contenu avec des champs arbitraires via PUT /api/v1/contents/{id}.
+  Future<Map<String, dynamic>> updateContent(
+    int contentId,
+    Map<String, dynamic> fields,
+  ) async {
+    try {
+      final response = await _dio.put(
+        '/contents/$contentId',
+        data: fields,
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _parseError(e);
+    }
+  }
+
   /// Récupère la liste paginée des acheteurs d'un contenu.
   Future<Map<String, dynamic>> getContentBuyers(
     int contentId, {

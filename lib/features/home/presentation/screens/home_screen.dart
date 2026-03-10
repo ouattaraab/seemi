@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/services/fcm_service.dart';
+import 'package:ppv_app/features/auth/presentation/profile_provider.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/features/auth/presentation/screens/profile_screen.dart';
@@ -19,11 +20,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 0 = Accueil, 1 = Upload (push), 2 = Portefeuille, 3 = Profil
+  // 0 = Accueil, 1 = Upload (push), 2 = Messages (push), 3 = Portefeuille, 4 = Profil
   int _currentIndex = 0;
 
-  // Mapping nav index → stack index (index 1 = Upload n'a pas de stack)
-  int get _stackIndex => _currentIndex > 1 ? _currentIndex - 1 : _currentIndex;
+  // Mapping nav index → stack index (index 1 = Upload, index 2 = Messages sont des push)
+  int get _stackIndex {
+    if (_currentIndex == 0) return 0;
+    if (_currentIndex >= 3) return _currentIndex - 2;
+    return 0;
+  }
 
   // Lazy loading : seul stackIndex 0 est initialisé au démarrage
   final Set<int> _visitedTabs = {0};
@@ -31,7 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _navigateToTab(int navIndex) {
     setState(() {
       _currentIndex = navIndex;
-      _visitedTabs.add(navIndex > 1 ? navIndex - 1 : navIndex);
+      if (navIndex != 1 && navIndex != 2) {
+        _visitedTabs.add(navIndex >= 3 ? navIndex - 2 : navIndex);
+      }
     });
   }
 
@@ -57,6 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
           _openNotificationScreen(context.read<NotificationProvider>());
         }
       });
+
+      // Vérifier si les consentements créateur post-KYC sont requis
+      _checkCreatorConsents();
     });
   }
 
@@ -64,6 +74,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     FcmService.instance.cancelMessageListeners();
     super.dispose();
+  }
+
+  /// Charge le profil et redirige vers les consentements créateur si requis.
+  Future<void> _checkCreatorConsents() async {
+    if (!mounted) return;
+    final profileProvider = context.read<ProfileProvider>();
+    await profileProvider.loadProfile();
+    if (!mounted) return;
+    final user = profileProvider.user;
+    if (user != null &&
+        user.kycStatus == 'approved' &&
+        user.creatorConsentsAcceptedAt == null) {
+      context.go(RouteNames.kRouteCreatorConsents);
+    }
   }
 
   void _openNotificationScreen(NotificationProvider provider) {
@@ -84,15 +108,16 @@ class _HomeScreenState extends State<HomeScreen> {
       body: IndexedStack(
         index: _stackIndex,
         children: [
-          _visitedTabs.contains(0) ? HomeDashboardTab(onNavigateToProfile: () => _navigateToTab(3)) : const SizedBox.shrink(), // stack 0 → nav 0
-          _visitedTabs.contains(1) ? const WalletScreen()     : const SizedBox.shrink(), // stack 1 → nav 2
-          _visitedTabs.contains(2) ? const ProfileScreen()    : const SizedBox.shrink(), // stack 2 → nav 3
+          _visitedTabs.contains(0) ? HomeDashboardTab(onNavigateToProfile: () => _navigateToTab(4)) : const SizedBox.shrink(), // stack 0 → nav 0
+          _visitedTabs.contains(1) ? const WalletScreen()     : const SizedBox.shrink(), // stack 1 → nav 3
+          _visitedTabs.contains(2) ? const ProfileScreen()    : const SizedBox.shrink(), // stack 2 → nav 4
         ],
       ),
       bottomNavigationBar: _BottomNav(
         currentIndex: _currentIndex,
         onIndexChanged: _navigateToTab,
         onUpload: () => context.push(RouteNames.kRouteUpload),
+        onMessages: () => context.push(RouteNames.kRouteConversations),
       ),
     );
   }
@@ -104,11 +129,13 @@ class _BottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onIndexChanged;
   final VoidCallback onUpload;
+  final VoidCallback onMessages;
 
   const _BottomNav({
     required this.currentIndex,
     required this.onIndexChanged,
     required this.onUpload,
+    required this.onMessages,
   });
 
   @override
@@ -180,19 +207,46 @@ class _BottomNav extends StatelessWidget {
                   ),
                 ),
               ),
+              // ── Messages (push navigation) ─────────────────────────────
+              Expanded(
+                child: GestureDetector(
+                  onTap: onMessages,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 24,
+                        color: AppColors.kTextTertiary,
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Messages',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.kTextTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               _NavItem(
                 icon: Icons.account_balance_wallet_outlined,
                 activeIcon: Icons.account_balance_wallet_rounded,
-                label: 'Portefeuille',
-                isActive: currentIndex == 2,
-                onTap: () => onIndexChanged(2),
+                label: 'Revenus',
+                isActive: currentIndex == 3,
+                onTap: () => onIndexChanged(3),
               ),
               _NavItem(
                 icon: Icons.person_outline_rounded,
                 activeIcon: Icons.person_rounded,
                 label: 'Profil',
-                isActive: currentIndex == 3,
-                onTap: () => onIndexChanged(3),
+                isActive: currentIndex == 4,
+                onTap: () => onIndexChanged(4),
               ),
             ],
           ),

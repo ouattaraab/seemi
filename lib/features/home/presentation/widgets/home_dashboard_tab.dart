@@ -408,27 +408,56 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 ),
               ),
               const SizedBox(height: 12),
-              // ── Bouton Uploader ──────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: AppSpacing.kButtonHeight,
-                child: OutlinedButton.icon(
-                  onPressed: () => context.push(RouteNames.kRouteUpload),
-                  icon: const Icon(Icons.add_circle_rounded, size: 22),
-                  label: const Text('Uploader du contenu'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.kPrimary,
-                    backgroundColor: AppColors.kBgSurface,
-                    side: const BorderSide(
-                        color: AppColors.kPrimary, width: 1.5),
-                    shape: const StadiumBorder(),
-                    textStyle: const TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
+              // ── Boutons d'action ─────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push(RouteNames.kRouteUpload),
+                      icon: const Icon(Icons.add_circle_rounded, size: 20),
+                      label: const Text('Publier'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.kPrimary,
+                        backgroundColor: AppColors.kBgSurface,
+                        side: const BorderSide(
+                            color: AppColors.kPrimary, width: 1.5),
+                        shape: const StadiumBorder(),
+                        minimumSize:
+                            const Size(0, AppSpacing.kButtonHeight),
+                        textStyle: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          context.push(RouteNames.kRouteMyBundles),
+                      icon: const Icon(
+                          Icons.collections_bookmark_rounded,
+                          size: 20),
+                      label: const Text('Bundles'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.kAccentViolet,
+                        backgroundColor: AppColors.kBgSurface,
+                        side: const BorderSide(
+                            color: AppColors.kAccentViolet, width: 1.5),
+                        shape: const StadiumBorder(),
+                        minimumSize:
+                            const Size(0, AppSpacing.kButtonHeight),
+                        textStyle: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           );

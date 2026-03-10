@@ -23,6 +23,11 @@ class _MockAuthRepository implements AuthRepository {
     required String dateOfBirth,
     required String password,
     required String passwordConfirmation,
+    String? referralCode,
+    required bool consentCgu,
+    required bool consentAge,
+    required bool consentData,
+    bool consentMarketing = false,
   }) async {
     throw UnimplementedError();
   }
@@ -51,9 +56,14 @@ class _MockAuthRepository implements AuthRepository {
     required String lastName,
     required String dateOfBirth,
     required File document,
+    required File documentBack,
+    required File selfie,
   }) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> acceptConsentsBatch({required List<String> types}) async {}
 
   @override
   Future<UserModel> getProfile() async {

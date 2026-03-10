@@ -70,6 +70,8 @@ class PaymentRepository {
     required String slug,
     required String email,
     String? phone,
+    int? buyerAmount,
+    String? affCode,
   }) async {
     try {
       final response = await _dio.post(
@@ -78,6 +80,8 @@ class PaymentRepository {
           'slug': slug,
           'email': email,
           if (phone != null && phone.isNotEmpty) 'phone': phone,
+          if (buyerAmount != null) 'buyer_amount': buyerAmount,
+          if (affCode != null && affCode.isNotEmpty) 'aff_code': affCode,
         },
       );
       final data = response.data['data'] as Map<String, dynamic>;

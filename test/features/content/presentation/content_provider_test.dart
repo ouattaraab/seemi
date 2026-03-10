@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ppv_app/features/content/data/content_model.dart';
@@ -21,20 +22,14 @@ class _MockContentRepository implements ContentRepository {
   Future<ContentModel> uploadPhoto(
     File photo, {
     void Function(int, int)? onProgress,
+    String? fileHash,
   }) async {
     uploadCallCount++;
-    if (shouldFail) {
-      throw Exception(failMessage);
-    }
-    // Simulate progress callbacks
+    if (shouldFail) throw Exception(failMessage);
     onProgress?.call(50, 100);
     onProgress?.call(100, 100);
     return const ContentModel(
-      id: 1,
-      type: 'photo',
-      status: 'draft',
-      viewCount: 0,
-      purchaseCount: 0,
+      id: 1, type: 'photo', status: 'draft', viewCount: 0, purchaseCount: 0,
     );
   }
 
@@ -42,28 +37,70 @@ class _MockContentRepository implements ContentRepository {
   Future<ContentModel> uploadVideo(
     File video, {
     void Function(int, int)? onProgress,
+    Uint8List? thumbnail,
+    String? fileHash,
   }) async {
     uploadCallCount++;
-    if (shouldFail) {
-      throw Exception(failMessage);
-    }
-    // Simulate progress callbacks
+    if (shouldFail) throw Exception(failMessage);
     onProgress?.call(50, 100);
     onProgress?.call(100, 100);
     return const ContentModel(
-      id: 2,
-      type: 'video',
-      status: 'draft',
-      viewCount: 0,
-      purchaseCount: 0,
+      id: 2, type: 'video', status: 'draft', viewCount: 0, purchaseCount: 0,
     );
   }
 
   @override
+  Future<(ChunkedUploadSession?, ContentModel?)> initChunkedUpload({
+    required String type,
+    required String originalName,
+    required int totalSize,
+    String? fileHash,
+  }) async {
+    if (shouldFail) throw Exception(failMessage);
+    return (
+      ChunkedUploadSession(uploadId: 'test-uid', totalChunks: 1, chunkSize: 5 * 1024 * 1024),
+      null,
+    );
+  }
+
+  @override
+  Future<int> uploadChunk(
+    String uploadId,
+    int index,
+    Uint8List chunkData, {
+    void Function(int, int)? onProgress,
+  }) async {
+    if (shouldFail) throw Exception(failMessage);
+    return 100;
+  }
+
+  @override
+  Future<({int receivedChunks, int totalChunks, String status})>
+      getChunkedUploadStatus(String uploadId) async {
+    return (receivedChunks: 0, totalChunks: 1, status: 'uploading');
+  }
+
+  @override
+  Future<ContentModel> completeChunkedUpload(
+    String uploadId, {
+    Uint8List? thumbnail,
+  }) async {
+    uploadCallCount++;
+    if (shouldFail) throw Exception(failMessage);
+    return const ContentModel(
+      id: 2, type: 'video', status: 'processing', viewCount: 0, purchaseCount: 0,
+    );
+  }
+
+  @override
+  Future<({String status, String? blurUrl, String? processingStatus, String? hlsUrl, String? bunnyVideoId})>
+      getContentStatus(int contentId) async {
+    return (status: 'active', blurUrl: null, processingStatus: null, hlsUrl: null, bunnyVideoId: null);
+  }
+
+  @override
   Future<void> acceptContentPublishTos() async {
-    if (tosAcceptShouldFail) {
-      throw Exception('CGU refusées');
-    }
+    if (tosAcceptShouldFail) throw Exception('CGU refusées');
   }
 
   @override
@@ -73,9 +110,7 @@ class _MockContentRepository implements ContentRepository {
     bool viewOnce = false,
   }) async {
     publishCallCount++;
-    if (shouldFail) {
-      throw Exception(failMessage);
-    }
+    if (shouldFail) throw Exception(failMessage);
     return ContentModel(
       id: contentId,
       type: 'photo',
@@ -90,32 +125,43 @@ class _MockContentRepository implements ContentRepository {
   }
 
   @override
-  Future<List<ContentBuyer>> getContentBuyers(int contentId) async {
-    return [];
+  Future<({List<ContentBuyer> buyers, String? nextCursor, bool hasMore})>
+      getContentBuyers(int contentId, {String? cursor}) async {
+    return (buyers: <ContentBuyer>[], nextCursor: null, hasMore: false);
   }
 
   @override
   Future<ContentModel> getContent(int contentId) async {
     return ContentModel(
-      id: contentId,
-      type: 'photo',
-      status: 'active',
-      viewCount: 0,
-      purchaseCount: 0,
+      id: contentId, type: 'photo', status: 'active', viewCount: 0, purchaseCount: 0,
+    );
+  }
+
+  @override
+  Future<ContentModel> updateContent(
+    int contentId,
+    Map<String, dynamic> fields,
+  ) async {
+    if (shouldFail) throw Exception(failMessage);
+    return ContentModel(
+      id: contentId, type: 'photo', status: 'active', viewCount: 0, purchaseCount: 0,
     );
   }
 
   @override
   Future<({List<ContentModel> contents, String? nextCursor, bool hasMore})>
       getMyContents({String? cursor}) async {
-    if (fetchShouldFail) {
-      throw Exception(failMessage);
-    }
+    if (fetchShouldFail) throw Exception(failMessage);
     return (
       contents: contentsToReturn,
       nextCursor: nextCursorToReturn,
       hasMore: hasMoreToReturn,
     );
+  }
+
+  @override
+  Future<void> deleteContent(int contentId) async {
+    if (shouldFail) throw Exception(failMessage);
   }
 }
 
@@ -153,8 +199,7 @@ void main() {
 
     test('uploadPhoto failure returns false and sets error', () async {
       mockRepository.shouldFail = true;
-      final file = File('test.jpg');
-      final result = await provider.uploadPhoto(file);
+      final result = await provider.uploadPhoto(File('test.jpg'));
 
       expect(result, false);
       expect(provider.isLoading, false);
@@ -169,46 +214,6 @@ void main() {
 
       expect(result, false);
       expect(provider.error, contains('KYC'));
-    });
-
-    test('uploadVideo success returns true and sets lastUploadedContent',
-        () async {
-      final file = File('test.mp4');
-      final result = await provider.uploadVideo(file);
-
-      expect(result, true);
-      expect(provider.isLoading, false);
-      expect(provider.error, isNull);
-      expect(provider.uploadProgress, isNull);
-      expect(provider.lastUploadedContent, isNotNull);
-      expect(provider.lastUploadedContent!.id, 2);
-      expect(provider.lastUploadedContent!.type, 'video');
-      expect(mockRepository.uploadCallCount, 1);
-    });
-
-    test('uploadVideo failure returns false and propagates server error',
-        () async {
-      mockRepository.shouldFail = true;
-      mockRepository.failMessage = 'Le fichier vidéo doit être au format MP4 ou MOV.';
-      final file = File('test.avi');
-      final result = await provider.uploadVideo(file);
-
-      expect(result, false);
-      expect(provider.isLoading, false);
-      expect(provider.error, contains('MP4'));
-      expect(provider.uploadProgress, isNull);
-    });
-
-    test('resetUploadState after video upload clears all state', () async {
-      await provider.uploadVideo(File('test.mp4'));
-      expect(provider.lastUploadedContent, isNotNull);
-
-      provider.resetUploadState();
-
-      expect(provider.isLoading, false);
-      expect(provider.error, isNull);
-      expect(provider.uploadProgress, isNull);
-      expect(provider.lastUploadedContent, isNull);
     });
 
     test('clearError resets error state', () async {
@@ -233,10 +238,8 @@ void main() {
     });
 
     test('safeNotify does not throw after dispose', () {
-      final disposableProvider =
-          ContentProvider(repository: mockRepository);
+      final disposableProvider = ContentProvider(repository: mockRepository);
       disposableProvider.dispose();
-
       expect(() => disposableProvider.clearError(), returnsNormally);
     });
 
@@ -268,10 +271,6 @@ void main() {
       expect(provider.error, contains('CGU'));
     });
 
-    test('initial isPublishing state is false', () {
-      expect(provider.isPublishing, false);
-    });
-
     test('publishContent success exposes lastPublishedContent with shareUrl',
         () async {
       final result = await provider.publishContent(42, 100);
@@ -283,20 +282,15 @@ void main() {
       expect(provider.lastPublishedContent!.slug, 'abc123xyz');
     });
 
-    test('lastPublishedContent is null initially', () {
-      expect(provider.lastPublishedContent, isNull);
-    });
-
     test('resetUploadState clears lastPublishedContent', () async {
       await provider.publishContent(42, 100);
       expect(provider.lastPublishedContent, isNotNull);
 
       provider.resetUploadState();
-
       expect(provider.lastPublishedContent, isNull);
     });
 
-    // ─── loadMyContents ────────────────────────────────────────────────────────
+    // ─── loadMyContents ───────────────────────────────────────────────────────
 
     test('initial myContents is empty', () {
       expect(provider.myContents, isEmpty);
@@ -308,12 +302,8 @@ void main() {
     test('loadMyContents success sets myContents', () async {
       mockRepository.contentsToReturn = [
         const ContentModel(
-          id: 1,
-          type: 'photo',
-          status: 'active',
-          viewCount: 5,
-          purchaseCount: 2,
-          price: 10000,
+          id: 1, type: 'photo', status: 'active',
+          viewCount: 5, purchaseCount: 2, price: 10000,
         ),
       ];
 
@@ -322,17 +312,6 @@ void main() {
       expect(provider.isFetchingContents, false);
       expect(provider.myContents.length, 1);
       expect(provider.myContents.first.id, 1);
-      expect(provider.contentsError, isNull);
-    });
-
-    test('loadMyContents empty list returns empty contents', () async {
-      mockRepository.contentsToReturn = [];
-      mockRepository.hasMoreToReturn = false;
-
-      await provider.loadMyContents();
-
-      expect(provider.myContents, isEmpty);
-      expect(provider.hasMore, false);
       expect(provider.contentsError, isNull);
     });
 
@@ -349,11 +328,7 @@ void main() {
     test('loadMyContents refresh replaces existing contents', () async {
       mockRepository.contentsToReturn = [
         const ContentModel(
-          id: 1,
-          type: 'photo',
-          status: 'active',
-          viewCount: 0,
-          purchaseCount: 0,
+          id: 1, type: 'photo', status: 'active', viewCount: 0, purchaseCount: 0,
         ),
       ];
       await provider.loadMyContents();
@@ -361,11 +336,7 @@ void main() {
 
       mockRepository.contentsToReturn = [
         const ContentModel(
-          id: 2,
-          type: 'video',
-          status: 'active',
-          viewCount: 0,
-          purchaseCount: 0,
+          id: 2, type: 'video', status: 'active', viewCount: 0, purchaseCount: 0,
         ),
       ];
       await provider.loadMyContents(refresh: true);

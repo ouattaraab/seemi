@@ -14,6 +14,9 @@ class ContentModel extends Content {
     required super.purchaseCount,
     super.createdAt,
     super.isViewOnce,
+    super.processingStatus,
+    super.hlsUrl,
+    super.bunnyVideoId,
   });
 
   factory ContentModel.fromJson(Map<String, dynamic> json) {
@@ -46,6 +49,10 @@ class ContentModel extends Content {
           ? DateTime.parse(json['created_at'] as String)
           : null,
       isViewOnce: json['view_once'] as bool? ?? false,
+      // F13 — Bunny Stream HLS fields
+      processingStatus: json['processing_status'] as String?,
+      hlsUrl: json['hls_url'] as String?,
+      bunnyVideoId: json['bunny_video_id'] as String?,
     );
   }
 }

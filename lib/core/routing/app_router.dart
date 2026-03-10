@@ -29,6 +29,25 @@ import 'package:ppv_app/features/maintenance/presentation/screens/maintenance_sc
 import 'package:ppv_app/features/creator_consents/presentation/screens/creator_consents_screen.dart';
 import 'package:ppv_app/features/referral/presentation/screens/referral_screen.dart';
 import 'package:ppv_app/features/splash/presentation/screens/splash_screen.dart';
+import 'package:ppv_app/features/creator_profile/presentation/creator_profile_provider.dart';
+import 'package:ppv_app/features/creator_profile/presentation/screens/creator_profile_screen.dart';
+import 'package:ppv_app/features/analytics/presentation/analytics_provider.dart';
+import 'package:ppv_app/features/analytics/presentation/screens/analytics_screen.dart';
+import 'package:ppv_app/features/auto_withdrawal/presentation/auto_withdrawal_provider.dart';
+import 'package:ppv_app/features/auto_withdrawal/presentation/screens/auto_withdrawal_screen.dart';
+import 'package:ppv_app/features/subscription/presentation/screens/fan_pass_screen.dart';
+import 'package:ppv_app/features/subscription/presentation/screens/my_subscriptions_screen.dart';
+import 'package:ppv_app/features/affiliate/presentation/screens/affiliate_dashboard_screen.dart';
+import 'package:ppv_app/features/custom_requests/presentation/screens/custom_requests_screen.dart';
+import 'package:ppv_app/features/messaging/presentation/conversations_provider.dart';
+import 'package:ppv_app/features/messaging/presentation/conversation_provider.dart';
+import 'package:ppv_app/features/messaging/presentation/screens/conversations_screen.dart';
+import 'package:ppv_app/features/messaging/presentation/screens/conversation_screen.dart';
+import 'package:ppv_app/features/bundle/presentation/my_bundles_provider.dart';
+import 'package:ppv_app/features/bundle/presentation/create_bundle_provider.dart';
+import 'package:ppv_app/features/bundle/presentation/screens/my_bundles_screen.dart';
+import 'package:ppv_app/features/bundle/presentation/screens/create_bundle_screen.dart';
+import 'package:ppv_app/features/bundle/presentation/screens/public_bundle_screen.dart';
 
 /// Configuration GoRouter PPV — routes déclaratives + guard d'auth.
 ///
@@ -52,6 +71,8 @@ class AppRouter {
     RouteNames.kRouteResetPassword,
     RouteNames.kRouteMaintenance,
     RouteNames.kRouteForceUpdate,
+    RouteNames.kRouteCreatorProfile,
+    RouteNames.kRouteBundlePublic,
   ];
 
   late final GoRouter router = GoRouter(
@@ -179,6 +200,89 @@ class AppRouter {
         path: RouteNames.kRouteCreatorConsents,
         builder: (context, state) => const CreatorConsentsScreen(),
       ),
+      GoRoute(
+        path: RouteNames.kRouteCreatorProfile,
+        builder: (context, state) {
+          final username = state.pathParameters['username']!;
+          return ChangeNotifierProvider(
+            create: (_) => CreatorProfileProvider(username: username),
+            child: CreatorProfileScreen(username: username),
+          );
+        },
+      ),
+      GoRoute(
+        path: RouteNames.kRouteAnalytics,
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (_) => AnalyticsProvider(),
+          child: const AnalyticsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteAutoWithdrawal,
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (_) => AutoWithdrawalProvider(),
+          child: const AutoWithdrawalScreen(),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteFanPass,
+        builder: (context, state) => FanPassScreen(
+          creatorId: int.parse(state.pathParameters['creatorId']!),
+          creatorName: state.uri.queryParameters['name'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteAffiliate,
+        builder: (context, state) => const AffiliateDashboardScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteCustomRequests,
+        builder: (context, state) => const CustomRequestsScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteMySubscriptions,
+        builder: (context, state) => const MySubscriptionsScreen(),
+      ),
+      // ── F14: Direct Messaging ──────────────────────────────────────────────
+      GoRoute(
+        path: RouteNames.kRouteConversations,
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (_) => ConversationsProvider(),
+          child: const ConversationsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteConversation,
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return ChangeNotifierProvider(
+            create: (_) => ConversationProvider(conversationId: id),
+            child: ConversationScreen(conversationId: id),
+          );
+        },
+      ),
+      // ── F12: Content Bundles ───────────────────────────────────────────────
+      GoRoute(
+        path: RouteNames.kRouteMyBundles,
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (_) => MyBundlesProvider(),
+          child: const MyBundlesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteBundleCreate,
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (_) => CreateBundleProvider(),
+          child: const CreateBundleScreen(),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteBundlePublic,
+        builder: (context, state) {
+          final slug = state.pathParameters['slug']!;
+          return PublicBundleScreen(slug: slug);
+        },
+      ),
     ],
   );
 
@@ -186,9 +290,11 @@ class AppRouter {
     BuildContext context,
     GoRouterState state,
   ) async {
-    // Les routes /c/* sont publiques (deep linking acheteurs sans compte)
+    // Les routes /c/*, /profile/* et /b/* sont publiques (deep linking)
     final isPublicRoute = _publicRoutes.contains(state.matchedLocation) ||
-        state.uri.path.startsWith('/c/');
+        state.uri.path.startsWith('/c/') ||
+        state.uri.path.startsWith('/profile/') ||
+        state.uri.path.startsWith('/b/');
     if (isPublicRoute) return null;
 
     final hasToken = await _storageService.hasTokens();

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
+import 'package:ppv_app/core/services/app_install_service.dart';
 import 'package:ppv_app/core/services/app_status_service.dart';
 import 'package:ppv_app/core/storage/secure_storage_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -45,7 +46,10 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _navigateAfterDelay() async {
     if (!mounted) return;
 
-    // 1. Vérifier le statut de l'app (maintenance / mise à jour)
+    // 1. Suivi premier lancement (fire-and-forget, silencieux)
+    unawaited(AppInstallService().trackIfFirstLaunch());
+
+    // 2. Vérifier le statut de l'app (maintenance / mise à jour)
     try {
       final status = await AppStatusService().check();
       if (!mounted) return;
@@ -71,7 +75,7 @@ class _SplashScreenState extends State<SplashScreen> {
       // Pas de réseau ou erreur → continuer normalement
     }
 
-    // 2. Vérification du token d'authentification
+    // 3. Vérification du token d'authentification
     final storage = widget.storageService ?? const SecureStorageService();
     final hasToken = await storage.hasTokens();
 

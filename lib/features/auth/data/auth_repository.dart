@@ -52,6 +52,10 @@ class AuthRepository {
     required String password,
     required String passwordConfirmation,
     String? referralCode,
+    required bool consentCgu,
+    required bool consentAge,
+    required bool consentData,
+    bool consentMarketing = false,
   }) async {
     final response = await _dataSource.registerWithEmailPassword(
       firstName:             firstName,
@@ -62,6 +66,10 @@ class AuthRepository {
       password:              password,
       passwordConfirmation:  passwordConfirmation,
       referralCode:          referralCode,
+      consentCgu:            consentCgu,
+      consentAge:            consentAge,
+      consentData:           consentData,
+      consentMarketing:      consentMarketing,
     );
 
     return _parseAuthResponse(response);
@@ -105,6 +113,11 @@ class AuthRepository {
       selfie:       selfie,
     );
     return _parseUserFromResponse(response);
+  }
+
+  /// Enregistre un lot de consentements (créateur post-KYC, acheteur, etc.).
+  Future<void> acceptConsentsBatch({required List<String> types}) async {
+    await _dataSource.acceptConsentsBatch(types: types);
   }
 
   /// Enregistre l'acceptation des CGU.

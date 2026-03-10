@@ -6,6 +6,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:ppv_app/firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:ppv_app/core/network/dio_client.dart';
+import 'package:ppv_app/core/services/mobile_event_service.dart';
 import 'package:ppv_app/core/routing/app_router.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/storage/secure_storage_service.dart';
@@ -140,6 +141,9 @@ class _PpvAppState extends State<PpvApp> {
       onMaintenance: (data) =>
           _appRouter.router.go(RouteNames.kRouteMaintenance, extra: data),
     );
+    // Initialise le service d'analytique mobile (Tier 2)
+    MobileEventService.initialize(dioClient.dio);
+
     final authDataSource = AuthRemoteDataSource(dio: dioClient.dio);
     _authRepository = AuthRepository(
       dataSource: authDataSource,

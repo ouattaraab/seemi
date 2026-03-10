@@ -15,6 +15,8 @@ class _SuccessRepository extends PaymentRepository {
     required String slug,
     required String email,
     String? phone,
+    int? buyerAmount,
+    String? affCode,
   }) async =>
       PaymentInitiationResult(
         reference: 'ppv_test_ref',
@@ -28,6 +30,8 @@ class _NotFoundRepository extends PaymentRepository {
     required String slug,
     required String email,
     String? phone,
+    int? buyerAmount,
+    String? affCode,
   }) async {
     throw const ApiException(
       message: 'Not found',
@@ -43,6 +47,8 @@ class _NetworkErrorRepository extends PaymentRepository {
     required String slug,
     required String email,
     String? phone,
+    int? buyerAmount,
+    String? affCode,
   }) async {
     throw const NetworkException(
       message: 'Pas de connexion internet.',

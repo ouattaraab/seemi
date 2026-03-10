@@ -12,6 +12,13 @@ class Content {
   final DateTime? createdAt;
   /// Vue unique — l'acheteur ne peut consulter ce contenu qu'une seule fois.
   final bool isViewOnce;
+  // F13 — Bunny Stream HLS fields
+  /// Statut de transcodage : null | 'uploading' | 'processing' | 'done' | 'failed'
+  final String? processingStatus;
+  /// URL de la playlist HLS (disponible quand processingStatus == 'done')
+  final String? hlsUrl;
+  /// GUID de la vidéo dans Bunny Stream
+  final String? bunnyVideoId;
 
   const Content({
     required this.id,
@@ -25,6 +32,9 @@ class Content {
     required this.purchaseCount,
     this.createdAt,
     this.isViewOnce = false,
+    this.processingStatus,
+    this.hlsUrl,
+    this.bunnyVideoId,
   });
 }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -30,10 +32,57 @@ class _CreatorContentDetailScreenState
   String? _nextCursor;
   bool _hasMore = false;
 
+  // F13 — Polling statut transcodage HLS
+  String? _processingStatus;
+  String? _hlsUrl;
+  Timer? _pollTimer;
+
   @override
   void initState() {
     super.initState();
     _loadBuyers();
+    // Initialiser avec la valeur de l'entité Content passée en paramètre
+    _processingStatus = widget.content.processingStatus;
+    _hlsUrl = widget.content.hlsUrl;
+    // Démarrer le polling si le transcodage est en cours
+    if (_shouldPoll(_processingStatus)) {
+      _startPolling();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  bool _shouldPoll(String? status) =>
+      status == 'uploading' || status == 'processing';
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (!mounted) {
+        _pollTimer?.cancel();
+        return;
+      }
+      try {
+        final result = await context
+            .read<ContentProvider>()
+            .getContentStatus(widget.content.id);
+        if (!mounted) return;
+        setState(() {
+          _processingStatus = result.processingStatus;
+          _hlsUrl = result.hlsUrl;
+        });
+        // Arrêter le polling si terminé ou en erreur
+        if (!_shouldPoll(result.processingStatus)) {
+          _pollTimer?.cancel();
+        }
+      } catch (_) {
+        // Ignorer les erreurs de polling
+      }
+    });
   }
 
   Future<void> _loadBuyers() async {
@@ -183,6 +232,13 @@ class _CreatorContentDetailScreenState
                     _TypeBadge(type: content.type),
                     _StatusBadge(status: content.status),
                     if (content.isViewOnce) _ViewOnceBadge(),
+                    // F13 — Badge statut transcodage HLS (vidéo uniquement)
+                    if (content.type == 'video' && _processingStatus != null)
+                      _ProcessingStatusBadge(
+                        status: _processingStatus!,
+                        isPolling: _shouldPoll(_processingStatus),
+                        hlsUrl: _hlsUrl,
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -205,6 +261,39 @@ class _CreatorContentDetailScreenState
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
                       color: AppColors.kAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: AppColors.kBgSurface,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(24)),
+                      ),
+                      builder: (_) => _FlashSaleSheet(
+                        contentId: content.id,
+                        currentPriceFcfa: content.price! ~/ 100,
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.local_fire_department_rounded,
+                      size: 16,
+                      color: Color(0xFFFF6B00),
+                    ),
+                    label: const Text(
+                      'Flash Sale',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFFF6B00),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFFF6B00)),
+                      shape: const StadiumBorder(),
                     ),
                   ),
                 ],
@@ -703,6 +792,72 @@ class _ViewOnceBadge extends StatelessWidget {
   }
 }
 
+// ─── _ProcessingStatusBadge ───────────────────────────────────────────────────
+
+/// F13 — Badge indiquant le statut du transcodage HLS Bunny Stream.
+///
+/// Affiché uniquement pour les vidéos côté créateur.
+/// Couleurs : uploading/processing = orange, done = vert, failed = rouge.
+class _ProcessingStatusBadge extends StatelessWidget {
+  final String status;
+  final bool isPolling;
+  /// URL HLS disponible quand status == 'done'
+  final String? hlsUrl;
+
+  const _ProcessingStatusBadge({
+    required this.status,
+    this.isPolling = false,
+    this.hlsUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final doneLabel = hlsUrl != null ? 'Prêt (HLS)' : 'Prêt';
+    final (label, color, icon) = switch (status) {
+      'uploading'  => ('Envoi en cours…',         const Color(0xFFFF6B00), Icons.upload_rounded),
+      'processing' => ('Traitement en cours…',    const Color(0xFFFF6B00), Icons.settings_rounded),
+      'done'       => (doneLabel,                  AppColors.kSuccess,     Icons.check_circle_outline_rounded),
+      'failed'     => ('Erreur transcodage',       AppColors.kError,       Icons.error_outline_rounded),
+      _            => (status,                     AppColors.kTextSecondary, Icons.info_outline_rounded),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isPolling)
+            SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: color,
+              ),
+            )
+          else
+            Icon(icon, size: 10, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const _kMonths = [
@@ -727,4 +882,175 @@ String _fmt(int n) {
     buf.write(s[i]);
   }
   return buf.toString();
+}
+
+// ─── _FlashSaleSheet ──────────────────────────────────────────────────────────
+
+class _FlashSaleSheet extends StatefulWidget {
+  final int contentId;
+  final int currentPriceFcfa;
+  const _FlashSaleSheet({
+    required this.contentId,
+    required this.currentPriceFcfa,
+  });
+  @override
+  State<_FlashSaleSheet> createState() => _FlashSaleSheetState();
+}
+
+class _FlashSaleSheetState extends State<_FlashSaleSheet> {
+  final _priceController = TextEditingController();
+  int _selectedHours = 24;
+  bool _loading = false;
+  String? _error;
+
+  final List<int> _durations = [1, 6, 12, 24, 48];
+
+  @override
+  void dispose() {
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _activate(BuildContext context) async {
+    final price = int.tryParse(_priceController.text.trim());
+    if (price == null || price <= 0 || price >= widget.currentPriceFcfa) {
+      setState(() =>
+          _error = 'Le prix flash doit être inférieur au prix normal');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await context.read<ContentProvider>().updateContent(
+        widget.contentId,
+        {
+          'flash_price': price * 100,
+          'flash_ends_at': DateTime.now()
+              .add(Duration(hours: _selectedHours))
+              .toIso8601String(),
+        },
+      );
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Flash sale activée !')),
+      );
+    } catch (_) {
+      setState(() {
+        _error = 'Impossible d\'activer la flash sale.';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Flash Sale',
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.kTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _priceController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText:
+                  'Prix flash (FCFA) — moins de ${widget.currentPriceFcfa} FCFA',
+              border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.kRadiusLg)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Durée :',
+            style: TextStyle(
+              fontFamily: 'Plus Jakarta Sans',
+              fontWeight: FontWeight.w600,
+              color: AppColors.kTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: _durations.map((h) {
+              final selected = _selectedHours == h;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedHours = h),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.kPrimary
+                        : AppColors.kBgSurface,
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.kRadiusPill),
+                    border: Border.all(
+                        color: selected
+                            ? AppColors.kPrimary
+                            : AppColors.kBorder),
+                  ),
+                  child: Text(
+                    '${h}h',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontWeight: FontWeight.w700,
+                      color: selected
+                          ? Colors.white
+                          : AppColors.kTextSecondary,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: const TextStyle(
+                  color: AppColors.kError, fontSize: 13),
+            ),
+          ],
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: AppSpacing.kButtonHeight,
+            child: FilledButton(
+              onPressed: _loading ? null : () => _activate(context),
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6B00),
+                  shape: const StadiumBorder()),
+              child: _loading
+                  ? const CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2)
+                  : const Text(
+                      'Activer la Flash Sale',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

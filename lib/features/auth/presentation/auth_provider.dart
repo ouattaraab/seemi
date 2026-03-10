@@ -43,6 +43,10 @@ class AuthProvider extends ChangeNotifier {
     required String password,
     required String passwordConfirmation,
     String? referralCode,
+    required bool consentCgu,
+    required bool consentAge,
+    required bool consentData,
+    bool consentMarketing = false,
   }) async {
     _isLoading = true;
     _error = null;
@@ -58,6 +62,10 @@ class AuthProvider extends ChangeNotifier {
         password:             password,
         passwordConfirmation: passwordConfirmation,
         referralCode:         referralCode,
+        consentCgu:           consentCgu,
+        consentAge:           consentAge,
+        consentData:          consentData,
+        consentMarketing:     consentMarketing,
       );
       _user = result.user;
       _isLoading = false;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ppv_app/core/network/api_exceptions.dart';
+import 'package:ppv_app/core/services/mobile_event_service.dart';
 import 'package:ppv_app/features/content/data/public_content_repository.dart';
 
 /// Provider pour l'écran de détail de contenu public (deep link /c/:slug).
@@ -27,6 +28,7 @@ class ContentDetailProvider extends ChangeNotifier {
     try {
       final data = await _repository.getPublicContent(slug);
       _content = data;
+      MobileEventService.instance.track('content.viewed', payload: {'slug': slug});
     } on ApiException catch (e) {
       _error = e.isNotFound
           ? 'Ce contenu n\'est plus disponible.'

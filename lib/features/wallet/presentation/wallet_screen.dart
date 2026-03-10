@@ -74,18 +74,21 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Portefeuille', style: AppTextStyles.kHeadlineLarge),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: AppColors.kBgElevated,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.settings_rounded,
-              color: AppColors.kTextSecondary,
-              size: 20,
+          const Text('Mes revenus', style: AppTextStyles.kHeadlineLarge),
+          GestureDetector(
+            onTap: () => context.push(RouteNames.kRouteAutoWithdrawal),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: AppColors.kBgElevated,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.settings_rounded,
+                color: AppColors.kTextSecondary,
+                size: 20,
+              ),
             ),
           ),
         ],

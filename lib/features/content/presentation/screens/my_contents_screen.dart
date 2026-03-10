@@ -70,6 +70,30 @@ class _MyContentsScreenState extends State<MyContentsScreen> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton.icon(
+              onPressed: () => context.push(RouteNames.kRouteMyBundles),
+              icon: const Icon(Icons.collections_bookmark_rounded,
+                  size: 16, color: AppColors.kPrimary),
+              label: const Text(
+                'Bundles',
+                style: TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.kPrimary,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(height: 1, color: AppColors.kBorder.withValues(alpha: 0.6)),

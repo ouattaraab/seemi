@@ -93,7 +93,11 @@ class TosModal extends StatelessWidget {
                       'Nos engagements',
                       '• Protéger vos données personnelles\n'
                           '• Assurer la sécurité des transactions\n'
-                          '• Verser vos gains selon les délais convenus',
+                          '• Verser vos gains selon les délais convenus\n'
+                          '• Ne jamais détenir vos fonds : les paiements '
+                          'sont gérés par Paystack, prestataire agréé. '
+                          'Votre solde est un indicateur comptable, '
+                          'non un dépôt de fonds.',
                     ),
                     if (error != null) ...[
                       const SizedBox(height: AppSpacing.kSpaceMd),

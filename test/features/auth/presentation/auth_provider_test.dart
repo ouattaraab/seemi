@@ -20,6 +20,11 @@ class _MockAuthRepository implements AuthRepository {
     required String dateOfBirth,
     required String password,
     required String passwordConfirmation,
+    String? referralCode,
+    required bool consentCgu,
+    required bool consentAge,
+    required bool consentData,
+    bool consentMarketing = false,
   }) async {
     registerCalled = true;
     if (registerError != null) throw registerError!;
@@ -62,9 +67,14 @@ class _MockAuthRepository implements AuthRepository {
     required String lastName,
     required String dateOfBirth,
     required File document,
+    required File documentBack,
+    required File selfie,
   }) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> acceptConsentsBatch({required List<String> types}) async {}
 
   @override
   Future<UserModel> getProfile() async {
@@ -146,6 +156,9 @@ void main() {
         dateOfBirth: '2000-01-01',
         password: 'password123',
         passwordConfirmation: 'password123',
+        consentCgu: true,
+        consentAge: true,
+        consentData: true,
       );
 
       expect(success, true);
@@ -169,6 +182,9 @@ void main() {
         dateOfBirth: '2000-01-01',
         password: 'password123',
         passwordConfirmation: 'password123',
+        consentCgu: true,
+        consentAge: true,
+        consentData: true,
       );
 
       expect(success, false);
@@ -189,6 +205,9 @@ void main() {
         dateOfBirth: '2000-01-01',
         password: 'password123',
         passwordConfirmation: 'password123',
+        consentCgu: true,
+        consentAge: true,
+        consentData: true,
       );
       expect(provider.error, isNotNull);
 

@@ -47,6 +47,8 @@ class _IdlePaymentRepository extends PaymentRepository {
     required String slug,
     required String email,
     String? phone,
+    int? buyerAmount,
+    String? affCode,
   }) async =>
       throw UnimplementedError('Non appelé dans ces tests');
 }

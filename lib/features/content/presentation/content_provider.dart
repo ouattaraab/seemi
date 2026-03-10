@@ -259,6 +259,13 @@ class ContentProvider extends ChangeNotifier {
     return null; // Timeout atteint
   }
 
+  // F13 — Polling du statut de transcodage HLS
+  // Expose getContentStatus pour l'écran créateur
+  Future<({String status, String? blurUrl, String? processingStatus, String? hlsUrl, String? bunnyVideoId})>
+      getContentStatus(int contentId) {
+    return _repository.getContentStatus(contentId);
+  }
+
   // ─── Publication ─────────────────────────────────────────────────────────
 
   /// Accepte les CGU et définit le prix du contenu.
@@ -376,6 +383,13 @@ class ContentProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<void> updateContent(
+    int contentId,
+    Map<String, dynamic> fields,
+  ) async {
+    await _repository.updateContent(contentId, fields);
   }
 
   Future<({List<ContentBuyer> buyers, String? nextCursor, bool hasMore})>
