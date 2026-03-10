@@ -13,6 +13,11 @@ class _MockShareRepository implements ShareRepository {
   Future<void> shareContent(String shareUrl) async {
     sharedUrls.add(shareUrl);
   }
+
+  @override
+  Future<void> shareToWhatsApp(String shareUrl) async {
+    sharedUrls.add(shareUrl);
+  }
 }
 
 void main() {

@@ -9,6 +9,11 @@ class _VerifyingShareRepository implements ShareRepository {
   Future<void> shareContent(String shareUrl) async {
     wasCalledWith = shareUrl;
   }
+
+  @override
+  Future<void> shareToWhatsApp(String shareUrl) async {
+    wasCalledWith = shareUrl;
+  }
 }
 
 void main() {
