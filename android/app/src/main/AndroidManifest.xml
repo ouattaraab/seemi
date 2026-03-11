@@ -9,6 +9,13 @@
     <!-- Authentification biométrique -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
+
+    <!-- Déclarer les features matérielles comme optionnelles pour maximiser
+         la compatibilité (tablettes sans caméra, TV, appareils sans capteur biométrique) -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
+    <uses-feature android:name="android.hardware.fingerprint" android:required="false"/>
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
     <application
         android:label="SeeMi"
         android:name="${applicationName}"
