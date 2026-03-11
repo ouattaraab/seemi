@@ -53,15 +53,19 @@ void main() async {
     debugPrint('Firebase init error: $e');
   }
 
-  await SentryFlutter.init(
-    (options) {
-      options.dsn = AppConfig.sentryDsn;
-      options.environment = AppConfig.environment;
-      // Traces désactivées en dev, 10 % en prod
-      options.tracesSampleRate = AppConfig.isProd ? 0.1 : 0.0;
-    },
-    appRunner: () => runApp(const PpvApp()),
-  );
+  // Lancer l'app immédiatement pour éviter tout blocage sur l'écran blanc.
+  // Sentry est initialisé en arrière-plan seulement si le DSN est configuré.
+  runApp(const PpvApp());
+
+  if (AppConfig.sentryDsn.isNotEmpty) {
+    SentryFlutter.init(
+      (options) {
+        options.dsn = AppConfig.sentryDsn;
+        options.environment = AppConfig.environment;
+        options.tracesSampleRate = AppConfig.isProd ? 0.1 : 0.0;
+      },
+    ).ignore();
+  }
 }
 
 /// Écran affiché sur les devices compromis — remplace l'app entière.
