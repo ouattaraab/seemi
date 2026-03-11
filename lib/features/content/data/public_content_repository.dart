@@ -105,9 +105,9 @@ class PublicContentRepository {
     }
   }
 
-  /// F13 — Récupère le média original (HLS ou R2 pre-signed URL).
+  /// F13 — Récupère le média original (HLS, vidéo R2 ou image R2).
   ///
-  /// Retourne une map `{'type': 'hls'|'r2', 'url': '...'}`.
+  /// Retourne une map `{'type': 'hls'|'video'|'r2', 'url': '...'}`.
   ///
   /// L'URL passée en paramètre est l'URL signée HMAC retournée par
   /// `PublicContentController::show()` via le champ `original_url`.

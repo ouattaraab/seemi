@@ -1,14 +1,14 @@
 /// Entité item d'un bundle — aucune dépendance framework.
 class BundleItem {
   final int id;
-  final String title;
+  final String slug;
   final String blurUrl;
   final int priceFcfa;
-  final String type; // image, video, audio
+  final String type; // photo, video
 
   const BundleItem({
     required this.id,
-    required this.title,
+    required this.slug,
     required this.blurUrl,
     required this.priceFcfa,
     required this.type,
@@ -17,10 +17,10 @@ class BundleItem {
   factory BundleItem.fromJson(Map<String, dynamic> json) {
     return BundleItem(
       id: json['id'] as int,
-      title: json['title'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
       blurUrl: json['blur_url'] as String? ?? '',
       priceFcfa: json['price_fcfa'] as int? ?? 0,
-      type: json['type'] as String? ?? 'image',
+      type: json['type'] as String? ?? 'photo',
     );
   }
 }
@@ -41,6 +41,7 @@ class Bundle {
   final String? creatorUsername;
   final String? creatorAvatarUrl;
   final List<BundleItem> items;
+  final bool isPaid;
 
   const Bundle({
     required this.id,
@@ -56,6 +57,7 @@ class Bundle {
     this.creatorUsername,
     this.creatorAvatarUrl,
     this.items = const [],
+    this.isPaid = false,
   });
 
   /// Construit depuis la réponse liste créateur ou création.
@@ -82,6 +84,7 @@ class Bundle {
               .map(BundleItem.fromJson)
               .toList()
           : const [],
+      isPaid: json['is_paid'] as bool? ?? false,
     );
   }
 }

@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/storage/secure_storage_service.dart';
-import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/features/content/data/public_content_repository.dart';
 import 'package:ppv_app/features/content/presentation/content_detail_provider.dart';
@@ -15,6 +15,17 @@ import 'package:ppv_app/features/payment/presentation/payment_provider.dart';
 import 'package:ppv_app/features/payment/presentation/widgets/download_button.dart';
 import 'package:ppv_app/features/payment/presentation/widgets/reveal_animation.dart';
 import 'package:ppv_app/features/payment/presentation/widgets/tip_bottom_sheet.dart';
+
+// ─── Web design tokens ───────────────────────────────────────────────────────
+const _kBg       = Color(0xFFF0EDE6); // parchment beige
+const _kPaper    = Color(0xFFFAFAF5); // off-white card
+const _kInk      = Color(0xFF0A0A0A); // near-black
+const _kMuted    = Color(0xFF6B6B6B); // grey body text
+const _kBlue     = Color(0xFF4AB5FF); // primary blue
+const _kBlueDark = Color(0xFF1240B8); // deep blue
+const _kSuccess  = Color(0xFF10B981);
+const _kError    = Color(0xFFEF4444);
+const _kOrange   = Color(0xFFFF6B00);
 
 /// Écran de détail de contenu — affiché via deep link (/c/:slug).
 ///
@@ -66,21 +77,19 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
     super.dispose();
   }
 
-  /// Déclenche automatiquement la vérification de paiement quand l'app
-  /// revient au premier plan. Couvre le cas où le navigateur externe
-  /// (Paystack) n'a pas redirigé via App Link vers le contenu.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted) {
-      final paymentProvider = context.read<PaymentProvider>();
-      final contentProvider = context.read<ContentDetailProvider>();
-      if (paymentProvider.hasPendingPayment &&
-          contentProvider.content != null) {
-        paymentProvider.checkPaymentAndReveal(
-          slug: contentProvider.content!.slug,
-          reference: paymentProvider.pendingReference!,
-        );
-      }
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final paymentProvider = context.read<PaymentProvider>();
+    final contentProvider = context.read<ContentDetailProvider>();
+    // Ne déclencher que si on attend un paiement et que le contenu est chargé
+    if (paymentProvider.hasPendingPayment &&
+        contentProvider.content != null &&
+        !paymentProvider.isPaid) {
+      paymentProvider.checkPaymentAndReveal(
+        slug: contentProvider.content!.slug,
+        reference: paymentProvider.pendingReference!,
+      );
     }
   }
 
@@ -105,7 +114,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.kBgBase,
+      backgroundColor: _kBg,
       appBar: _buildAppBar(),
       body: Consumer2<ContentDetailProvider, PaymentProvider>(
         builder: (context, contentProvider, paymentProvider, child) =>
@@ -118,37 +127,18 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: AppColors.kBgBase,
+      backgroundColor: _kPaper,
       elevation: 0,
       centerTitle: true,
       leading: IconButton(
-        icon: const Icon(Icons.close_rounded, color: AppColors.kTextSecondary),
+        icon: const Icon(Icons.close_rounded, color: _kInk),
         onPressed: _handleBack,
         tooltip: 'Fermer',
       ),
-      title: const Text.rich(
-        TextSpan(
-          style: TextStyle(
-            fontFamily: 'Plus Jakarta Sans',
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.3,
-          ),
-          children: [
-            TextSpan(
-              text: 'See',
-              style: TextStyle(color: AppColors.kTextPrimary),
-            ),
-            TextSpan(
-              text: 'Mi',
-              style: TextStyle(color: AppColors.kAccent),
-            ),
-          ],
-        ),
-      ),
+      title: _LogoPill(),
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: AppColors.kBorder),
+        preferredSize: const Size.fromHeight(2),
+        child: Container(height: 2, color: _kInk),
       ),
     );
   }
@@ -167,13 +157,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
       return const _LoadingState(message: 'Chargement du contenu…');
     }
     if (contentProvider.error != null) {
-      return _ErrorState(message: contentProvider.error!);
+      return _ErrorState(
+        message: contentProvider.error!,
+        isNotFound: contentProvider.isNotFound,
+      );
     }
 
     final content = contentProvider.content!;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.kSpaceMd),
+      padding: const EdgeInsets.all(16),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
@@ -182,16 +175,14 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
               // ── Card principale ──────────────────────────────────────
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.kBgSurface,
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.kRadiusXl),
-                  border: Border.all(color: AppColors.kBorder),
-                  boxShadow: [
+                  color: _kPaper,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kInk, width: 2),
+                  boxShadow: const [
                     BoxShadow(
-                      color:
-                          AppColors.kTextPrimary.withValues(alpha: 0.06),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
+                      color: Color(0xCC0A0A0A),
+                      offset: Offset(4, 4),
+                      blurRadius: 0,
                     ),
                   ],
                 ),
@@ -205,7 +196,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // ── Banner inscription post-paiement ─────────────────────
               if (paymentProvider.isPaid && !_dismissedIncentive) ...[
@@ -218,12 +209,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
               ],
 
               // ── Footer branding ──────────────────────────────────────
-              const Text(
+              Text(
                 'Propulsé par SeeMi',
-                style: TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontSize: 12,
-                  color: AppColors.kTextTertiary,
+                style: GoogleFonts.ibmPlexMono(
+                  fontSize: 11,
+                  color: _kMuted,
                   letterSpacing: 0.3,
                 ),
               ),
@@ -242,32 +232,31 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
     PaymentProvider paymentProvider,
   ) {
     if (paymentProvider.isPaid) {
-      // F13 — Résolution en cours : afficher un indicateur de chargement
       if (paymentProvider.isResolvingMedia) {
         return const AspectRatio(
-          aspectRatio: 16 / 9,
+          aspectRatio: 1,
           child: ColoredBox(
-            color: Colors.black,
+            color: _kInk,
             child: Center(
-              child: CircularProgressIndicator(color: Colors.white),
+              child: CircularProgressIndicator(color: _kBlue),
             ),
           ),
         );
       }
 
-      // F13 — Média résolu : afficher selon le type
       if (paymentProvider.resolvedMediaUrl != null) {
-        if (paymentProvider.mediaType == 'hls') {
+        final isVideo = paymentProvider.mediaType == 'hls' ||
+            paymentProvider.mediaType == 'video' ||
+            (paymentProvider.mediaType == 'r2' && content.type == 'video');
+        if (isVideo) {
           return HlsVideoPlayer(hlsUrl: paymentProvider.resolvedMediaUrl!);
         }
-        // Type 'r2' ou non renseigné : comportement existant (image)
         return ColoredBox(
           color: Colors.black,
           child: RevealAnimation(originalUrl: paymentProvider.resolvedMediaUrl!),
         );
       }
 
-      // URL signée disponible mais résolution pas encore lancée : fallback image
       if (paymentProvider.originalUrl != null) {
         return ColoredBox(
           color: Colors.black,
@@ -297,29 +286,24 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
           // Badge "débloqué"
           if (paymentProvider.isPaid) ...[
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.kSuccess.withValues(alpha: 0.10),
-                borderRadius:
-                    BorderRadius.circular(AppSpacing.kRadiusPill),
-                border: Border.all(
-                    color: AppColors.kSuccess.withValues(alpha: 0.28)),
+                color: _kSuccess.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: _kSuccess, width: 1.5),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_rounded,
-                      color: AppColors.kSuccess, size: 13),
-                  SizedBox(width: 5),
+                  const Icon(Icons.check_circle_rounded,
+                      color: _kSuccess, size: 13),
+                  const SizedBox(width: 5),
                   Text(
                     'CONTENU DÉBLOQUÉ',
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      color: AppColors.kSuccess,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
+                    style: GoogleFonts.bebasNeue(
+                      color: _kSuccess,
+                      fontSize: 13,
+                      letterSpacing: 1.2,
                     ),
                   ),
                 ],
@@ -335,19 +319,18 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.kPrimary.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
+                  color: _kBlueDark,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: _kInk, width: 1.5),
                 ),
                 child: Center(
                   child: Text(
                     content.creatorName.isNotEmpty
                         ? content.creatorName[0].toUpperCase()
                         : 'C',
-                    style: const TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      color: AppColors.kPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
+                    style: GoogleFonts.bebasNeue(
+                      color: Colors.white,
+                      fontSize: 18,
                     ),
                   ),
                 ),
@@ -356,36 +339,32 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
               Expanded(
                 child: Text(
                   content.creatorName,
-                  style: const TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 15,
+                  style: GoogleFonts.ibmPlexMono(
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.kTextPrimary,
+                    color: _kInk,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Compteur de vues
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.kBgElevated,
-                  borderRadius: BorderRadius.circular(AppSpacing.kRadiusPill),
+                  color: _kBg,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: _kInk, width: 1),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.visibility_outlined,
-                        color: AppColors.kTextTertiary, size: 13),
+                        color: _kMuted, size: 13),
                     const SizedBox(width: 4),
                     Text(
                       '${content.viewCount}',
-                      style: const TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.kTextSecondary,
+                      style: GoogleFonts.ibmPlexMono(
+                        fontSize: 11,
+                        color: _kMuted,
                       ),
                     ),
                   ],
@@ -396,11 +375,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
 
           const SizedBox(height: 14),
 
-          // ── Description + Flash badge ─────────────────────────────────
+          // ── Flash countdown ───────────────────────────────────────────
           if (!paymentProvider.isPaid && content.isFlashActive && content.flashEndsAt != null) ...[
             _FlashCountdown(endsAt: content.flashEndsAt!),
             const SizedBox(height: 8),
           ],
+
+          // ── Description ───────────────────────────────────────────────
           Text(
             paymentProvider.isPaid
                 ? 'Contenu débloqué avec succès !'
@@ -409,15 +390,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                     : content.isPwyw
                         ? 'Payez ce que vous voulez — minimum ${content.pwywMinimumPriceFcfa} FCFA.'
                         : 'Cette ${content.type == 'video' ? 'vidéo' : 'photo'} est verrouillée. Payez ${content.priceFcfa} FCFA pour la voir.',
-            style: TextStyle(
-              fontFamily: 'Plus Jakarta Sans',
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
+            style: GoogleFonts.ibmPlexMono(
+              fontSize: 13,
               color: paymentProvider.isPaid
-                  ? AppColors.kTextPrimary
+                  ? _kInk
                   : content.isFlashActive
-                      ? const Color(0xFFFF6B00)
-                      : AppColors.kTextSecondary,
+                      ? _kOrange
+                      : _kMuted,
               height: 1.55,
             ),
           ),
@@ -427,7 +406,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
             _buildSocialProofBadge(content.purchaseCount, content.isTrending),
 
           // ── Téléchargement + Pourboire ────────────────────────────────
-          // F13 — Pas de bouton téléchargement pour les vidéos HLS (streaming)
           if (paymentProvider.isPaid &&
               paymentProvider.resolvedMediaUrl != null &&
               paymentProvider.mediaType != 'hls') ...[
@@ -443,23 +421,23 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                 onPressed: () => showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
-                  backgroundColor: AppColors.kBgSurface,
+                  backgroundColor: _kPaper,
                   shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(24))),
+                          top: Radius.circular(16))),
                   builder: (_) => TipBottomSheet(
                     slug: content.slug,
                     creatorName: content.creatorName,
                   ),
                 ),
                 icon: const Icon(Icons.favorite_border_rounded,
-                    size: 16, color: AppColors.kSuccess),
-                label: const Text(
+                    size: 16, color: _kSuccess),
+                label: Text(
                   'Laisser un pourboire',
-                  style: TextStyle(
-                    color: AppColors.kSuccess,
-                    fontFamily: 'Plus Jakarta Sans',
+                  style: GoogleFonts.ibmPlexMono(
+                    color: _kSuccess,
                     fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -469,11 +447,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
           // ── Erreur paiement ──────────────────────────────────────────
           if (paymentProvider.paymentFailed) ...[
             const SizedBox(height: 16),
-            _buildPaymentErrorBanner(
-                context, content, paymentProvider),
+            _buildPaymentErrorBanner(context, content, paymentProvider),
           ],
 
-          // ── Vérification manuelle (retour du navigateur externe) ─────
+          // ── Vérification manuelle ────────────────────────────────────
           if (paymentProvider.hasPendingPayment) ...[
             const SizedBox(height: 16),
             _buildCheckPaymentBanner(context, content, paymentProvider),
@@ -484,43 +461,19 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
               !paymentProvider.paymentFailed &&
               !paymentProvider.hasPendingPayment) ...[
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: AppSpacing.kButtonHeight,
-              child: ElevatedButton.icon(
-                key: const Key('btn-pay'),
-                onPressed: () => _showPaymentDialog(
-                  context,
-                  content.slug,
-                  content.priceFcfa,
-                  isPwyw: content.isPwyw,
-                  pwywMin: content.pwywMinimumPriceFcfa,
-                ),
-                icon: const Icon(Icons.lock_open_rounded, size: 20),
-                label: Text(
-                  content.isFlashActive
-                      ? 'Flash · ${content.priceFcfa} FCFA'
-                      : content.isPwyw
-                          ? 'Payer ce que tu veux'
-                          : 'Débloquer · ${content.priceFcfa} FCFA',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: content.isFlashActive
-                      ? const Color(0xFFFF6B00)
-                      : AppColors.kAccent,
-                  foregroundColor: Colors.white,
-                  elevation: 4,
-                  shadowColor: (content.isFlashActive
-                          ? const Color(0xFFFF6B00)
-                          : AppColors.kAccent)
-                      .withValues(alpha: 0.35),
-                  shape: const StadiumBorder(),
-                  textStyle: const TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+            _PayButton(
+              label: content.isFlashActive
+                  ? 'Flash · ${content.priceFcfa} FCFA'
+                  : content.isPwyw
+                      ? 'Payer ce que tu veux'
+                      : 'Débloquer · ${content.priceFcfa} FCFA',
+              color: content.isFlashActive ? _kOrange : _kBlue,
+              onPressed: () => _showPaymentDialog(
+                context,
+                content.slug,
+                content.priceFcfa,
+                isPwyw: content.isPwyw,
+                pwywMin: content.pwywMinimumPriceFcfa,
               ),
             ),
           ],
@@ -529,7 +482,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
     );
   }
 
-  // ─── Social proof badges ──────────────────────────────────────────────────
+  // ─── Social proof ─────────────────────────────────────────────────────────
 
   Widget _buildSocialProofBadge(int purchaseCount, bool isTrending) {
     if (purchaseCount <= 0 && !isTrending) return const SizedBox.shrink();
@@ -541,54 +494,16 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
         runSpacing: 6,
         children: [
           if (purchaseCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.kSuccess.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.kSuccess.withValues(alpha: 0.25)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.lock_open_rounded, size: 12, color: AppColors.kSuccess),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$purchaseCount personne${purchaseCount > 1 ? 's ont' : ' a'} débloqué',
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.kSuccess,
-                    ),
-                  ),
-                ],
-              ),
+            _InkBadge(
+              color: _kSuccess,
+              icon: Icons.lock_open_rounded,
+              label: '$purchaseCount personne${purchaseCount > 1 ? 's ont' : ' a'} débloqué',
             ),
           if (isTrending)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6B00).withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFFF6B00).withValues(alpha: 0.25)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.local_fire_department_rounded, size: 12, color: Color(0xFFFF6B00)),
-                  SizedBox(width: 4),
-                  Text(
-                    'Tendance',
-                    style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFFF6B00),
-                    ),
-                  ),
-                ],
-              ),
+            _InkBadge(
+              color: _kOrange,
+              icon: Icons.local_fire_department_rounded,
+              label: 'Tendance',
             ),
         ],
       ),
@@ -605,52 +520,40 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.kPrimary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
-        border: Border.all(
-            color: AppColors.kPrimary.withValues(alpha: 0.20)),
+        color: _kPaper,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _kBlueDark, width: 2),
+        boxShadow: const [
+          BoxShadow(color: Color(0x401240B8), offset: Offset(3, 3), blurRadius: 0),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.hourglass_top_rounded,
-                  color: AppColors.kPrimary, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.hourglass_top_rounded, color: _kBlueDark, size: 18),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Paiement initié. Revenez ici après avoir complété le paiement pour débloquer le contenu.',
-                  style: TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 13,
-                    color: AppColors.kPrimary,
-                    height: 1.45,
+                  style: GoogleFonts.ibmPlexMono(
+                    fontSize: 12,
+                    color: _kBlueDark,
+                    height: 1.5,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          ElevatedButton.icon(
-            key: const Key('btn-check-payment'),
+          _PayButton(
+            label: 'Vérifier mon paiement',
+            color: _kBlueDark,
             onPressed: () => paymentProvider.checkPaymentAndReveal(
               slug: content.slug,
               reference: paymentProvider.pendingReference!,
-            ),
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Vérifier mon paiement'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.kPrimary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: const StadiumBorder(),
-              textStyle: const TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -661,12 +564,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
                 paymentProvider.reset();
                 _showPaymentDialog(context, content.slug, content.priceFcfa);
               },
-              child: const Text(
+              child: Text(
                 'Payer à nouveau',
-                style: TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
+                style: GoogleFonts.ibmPlexMono(
                   fontSize: 12,
-                  color: AppColors.kTextTertiary,
+                  color: _kMuted,
                   decoration: TextDecoration.underline,
                 ),
               ),
@@ -687,49 +589,39 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.kError.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
-        border: Border.all(
-            color: AppColors.kError.withValues(alpha: 0.22)),
+        color: _kPaper,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _kError, width: 2),
+        boxShadow: const [
+          BoxShadow(color: Color(0x40EF4444), offset: Offset(3, 3), blurRadius: 0),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.error_outline_rounded,
-                  color: AppColors.kError, size: 18),
-              SizedBox(width: 8),
+              const Icon(Icons.error_outline_rounded, color: _kError, size: 18),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Le paiement n\'a pas abouti. Réessayez ou changez de moyen de paiement.',
-                  style: TextStyle(
-                    fontFamily: 'Plus Jakarta Sans',
-                    fontSize: 13,
-                    color: AppColors.kError,
-                    height: 1.45,
+                  style: GoogleFonts.ibmPlexMono(
+                    fontSize: 12,
+                    color: _kError,
+                    height: 1.5,
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          OutlinedButton(
-            key: const Key('btn-retry-payment'),
+          _PayButton(
+            label: 'Réessayer',
+            color: _kError,
             onPressed: () => _showPaymentDialog(
                 context, content.slug, content.priceFcfa),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.kError,
-              side: BorderSide(
-                  color: AppColors.kError.withValues(alpha: 0.38)),
-              shape: const StadiumBorder(),
-              textStyle: const TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            child: const Text('Réessayer'),
           ),
         ],
       ),
@@ -746,266 +638,617 @@ class _ContentDetailScreenState extends State<ContentDetailScreen>
     int pwywMin = 0,
   }) {
     context.read<PaymentProvider>().reset();
-
-    final emailController = TextEditingController();
-    final phoneController = TextEditingController();
-    final pwywController = TextEditingController(
-        text: isPwyw ? '$pwywMin' : '');
-    final formKey = GlobalKey<FormState>();
     final paymentProvider = context.read<PaymentProvider>();
 
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return ChangeNotifierProvider.value(
-          value: paymentProvider,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.kBgSurface,
-              borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(AppSpacing.kRadiusXl)),
-            ),
-            padding: EdgeInsets.only(
-              left: 24,
-              right: 24,
-              top: 12,
-              bottom:
-                  MediaQuery.of(sheetContext).viewInsets.bottom + 28,
-            ),
-            child: Consumer<PaymentProvider>(
-              builder: (consumerCtx, provider, child) {
-                if (provider.hasUrl) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    Navigator.of(sheetContext).pop();
-                    launchUrl(
-                      Uri.parse(provider.authorizationUrl!),
-                      mode: LaunchMode.externalApplication,
-                    );
-                  });
-                }
+      builder: (sheetContext) => ChangeNotifierProvider.value(
+        value: paymentProvider,
+        child: _PaymentSheet(
+          slug: slug,
+          priceFcfa: priceFcfa,
+          isPwyw: isPwyw,
+          pwywMin: pwywMin,
+        ),
+      ),
+    );
+  }
+}
 
-                return Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Handle
-                      Center(
-                        child: Container(
-                          width: 36,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: AppColors.kBorder,
-                            borderRadius: BorderRadius.circular(2),
+// ─── _PaymentSheet ────────────────────────────────────────────────────────────
+
+class _PaymentSheet extends StatefulWidget {
+  final String slug;
+  final int priceFcfa;
+  final bool isPwyw;
+  final int pwywMin;
+
+  const _PaymentSheet({
+    required this.slug,
+    required this.priceFcfa,
+    required this.isPwyw,
+    required this.pwywMin,
+  });
+
+  @override
+  State<_PaymentSheet> createState() => _PaymentSheetState();
+}
+
+class _PaymentSheetState extends State<_PaymentSheet> {
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  late final TextEditingController _pwywController;
+  final _formKey = GlobalKey<FormState>();
+
+  // Guard contre les double-pops (cause du bug _dependents.isEmpty)
+  bool _launched = false;
+
+  // 5 consentements obligatoires
+  bool _c1 = false; // CGU + vie privée
+  bool _c2 = false; // 18 ans + accès adulte
+  bool _c3 = false; // non-remboursable + vue unique
+  bool _c4 = false; // droit de visualisation personnel
+  bool _c5 = false; // anti-harcèlement / chantage
+
+  bool get _allConsented => _c1 && _c2 && _c3 && _c4 && _c5;
+
+  @override
+  void initState() {
+    super.initState();
+    _pwywController = TextEditingController(
+        text: widget.isPwyw ? '${widget.pwywMin}' : '');
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _phoneController.dispose();
+    _pwywController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<PaymentProvider>(
+      builder: (consumerCtx, provider, _) {
+        if (provider.hasUrl && !_launched) {
+          _launched = true;
+          // Planifier une seule fois, vérifier mounted avant de pop
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final url = provider.authorizationUrl!;
+            Navigator.of(context).pop();
+            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+          });
+        }
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: _kPaper,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            border: Border(
+              top: BorderSide(color: _kInk, width: 2),
+              left: BorderSide(color: _kInk, width: 2),
+              right: BorderSide(color: _kInk, width: 2),
+            ),
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 12,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: _kInk,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Titre
+                  Text(
+                    widget.isPwyw
+                        ? 'PAYER CE QUE VOUS VOULEZ'
+                        : 'DÉBLOQUER LE CONTENU',
+                    style: GoogleFonts.bebasNeue(
+                      fontSize: 22,
+                      color: _kInk,
+                      letterSpacing: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Prix badge (non PWYW)
+                  if (!widget.isPwyw)
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _kBlue.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: _kBlue, width: 1.5),
+                        ),
+                        child: Text(
+                          '${widget.priceFcfa} FCFA',
+                          style: GoogleFonts.bebasNeue(
+                            color: _kBlueDark,
+                            fontSize: 18,
+                            letterSpacing: 1,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                    ),
 
-                      // Titre
-                      Text(
-                        isPwyw
-                            ? 'Payer ce que vous voulez'
-                            : 'Débloquer le contenu',
-                        style: const TextStyle(
-                          fontFamily: 'Plus Jakarta Sans',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.kTextPrimary,
-                          letterSpacing: -0.3,
+                  // Champ PWYW
+                  if (widget.isPwyw) ...[
+                    Center(
+                      child: Text(
+                        'Minimum ${widget.pwywMin} FCFA',
+                        style: GoogleFonts.ibmPlexMono(
+                            fontSize: 12, color: _kMuted),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _InkTextField(
+                      controller: _pwywController,
+                      hintText: 'Montant (FCFA)',
+                      prefixIcon: Icons.monetization_on_outlined,
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        final val = int.tryParse(v?.trim() ?? '');
+                        if (val == null || val < widget.pwywMin) {
+                          return 'Montant minimum : ${widget.pwywMin} FCFA';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Email
+                  _InkTextField(
+                    controller: _emailController,
+                    hintText: 'Adresse email *',
+                    prefixIcon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'L\'email est requis';
+                      }
+                      if (!v.contains('@') || !v.contains('.')) {
+                        return 'Email invalide';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Téléphone
+                  _InkTextField(
+                    controller: _phoneController,
+                    hintText: 'Téléphone Mobile Money (optionnel)',
+                    prefixIcon: Icons.phone_outlined,
+                    keyboardType: TextInputType.phone,
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // ── Consentements obligatoires ──────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: _kBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: _kInk, width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CONSENTEMENTS OBLIGATOIRES',
+                          style: GoogleFonts.bebasNeue(
+                            fontSize: 13,
+                            color: _kInk,
+                            letterSpacing: 1.2,
+                          ),
                         ),
+                        const SizedBox(height: 10),
+                        _ConsentRow(
+                          value: _c1,
+                          onChanged: (v) => setState(() => _c1 = v),
+                          text:
+                              'J\'accepte les conditions d\'utilisation et la politique de confidentialité de SeeMi.',
+                        ),
+                        _ConsentRow(
+                          value: _c2,
+                          onChanged: (v) => setState(() => _c2 = v),
+                          text:
+                              'J\'atteste avoir 18 ans ou plus et être autorisé(e) à accéder à du contenu pour adultes.',
+                        ),
+                        _ConsentRow(
+                          value: _c3,
+                          onChanged: (v) => setState(() => _c3 = v),
+                          text:
+                              'Je comprends que ce contenu est non-remboursable après déblocage et disponible en vue unique.',
+                        ),
+                        _ConsentRow(
+                          value: _c4,
+                          onChanged: (v) => setState(() => _c4 = v),
+                          text:
+                              'J\'obtiens un droit de visualisation strictement personnel et non transférable. Toute reproduction ou redistribution est interdite (Loi n° 2013-451).',
+                        ),
+                        _ConsentRow(
+                          value: _c5,
+                          onChanged: (v) => setState(() => _c5 = v),
+                          text:
+                              'Je m\'engage à ne jamais utiliser ce contenu à des fins de chantage, harcèlement ou extorsion (Loi n° 2021-893 ; Loi n° 2013-451).',
+                          isLast: true,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Erreur paiement
+                  if (provider.error != null) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded,
+                            color: _kError, size: 15),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            provider.error!,
+                            style: GoogleFonts.ibmPlexMono(
+                                fontSize: 12, color: _kError),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Bouton confirmer
+                  _PayButton(
+                    label: provider.isLoading
+                        ? 'Redirection…'
+                        : 'Payer pour débloquer',
+                    color: _allConsented ? _kBlue : _kMuted,
+                    loading: provider.isLoading,
+                    onPressed: (provider.isLoading || !_allConsented)
+                        ? null
+                        : () async {
+                            if (!_formKey.currentState!.validate()) return;
+                            int? buyerAmt;
+                            if (widget.isPwyw) {
+                              final val = int.tryParse(
+                                  _pwywController.text.trim());
+                              if (val != null) buyerAmt = val * 100;
+                            }
+                            await consumerCtx
+                                .read<PaymentProvider>()
+                                .initiatePayment(
+                                  slug: widget.slug,
+                                  email: _emailController.text.trim(),
+                                  phone:
+                                      _phoneController.text.trim().isEmpty
+                                          ? null
+                                          : _phoneController.text.trim(),
+                                  buyerAmount: buyerAmt,
+                                );
+                          },
+                  ),
+
+                  if (!_allConsented) ...[
+                    const SizedBox(height: 6),
+                    Center(
+                      child: Text(
+                        'Veuillez accepter tous les consentements pour continuer.',
+                        style: GoogleFonts.ibmPlexMono(
+                            fontSize: 11, color: _kMuted),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
-
-                      // Prix badge (non PWYW)
-                      if (!isPwyw)
-                        Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.kAccent
-                                  .withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(
-                                  AppSpacing.kRadiusPill),
-                              border: Border.all(
-                                  color: AppColors.kAccent
-                                      .withValues(alpha: 0.25)),
-                            ),
-                            child: Text(
-                              '$priceFcfa FCFA',
-                              style: const TextStyle(
-                                fontFamily: 'Plus Jakarta Sans',
-                                color: AppColors.kAccentDark,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // Champ PWYW
-                      if (isPwyw) ...[
-                        Center(
-                          child: Text(
-                            'Minimum $pwywMin FCFA',
-                            style: const TextStyle(
-                              fontFamily: 'Plus Jakarta Sans',
-                              fontSize: 13,
-                              color: AppColors.kTextSecondary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _SheetPillField(
-                          controller: pwywController,
-                          hintText: 'Montant que vous souhaitez payer (FCFA)',
-                          prefixIcon: Icons.monetization_on_outlined,
-                          keyboardType: TextInputType.number,
-                          validator: (v) {
-                            final val = int.tryParse(v?.trim() ?? '');
-                            if (val == null || val < pwywMin) {
-                              return 'Montant minimum : $pwywMin FCFA';
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
-
-                      const SizedBox(height: 24),
-
-                      // Email
-                      _SheetPillField(
-                        controller: emailController,
-                        hintText: 'Adresse email *',
-                        prefixIcon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'L\'email est requis';
-                          }
-                          if (!v.contains('@') || !v.contains('.')) {
-                            return 'Email invalide';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Téléphone
-                      _SheetPillField(
-                        controller: phoneController,
-                        hintText: 'Téléphone Mobile Money (optionnel)',
-                        prefixIcon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                      ),
-
-                      // Erreur
-                      if (provider.error != null) ...[
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            const Icon(Icons.error_outline_rounded,
-                                color: AppColors.kError, size: 15),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                provider.error!,
-                                style: const TextStyle(
-                                  fontFamily: 'Plus Jakarta Sans',
-                                  fontSize: 13,
-                                  color: AppColors.kError,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-
-                      const SizedBox(height: 20),
-
-                      // Bouton confirmer
-                      SizedBox(
-                        height: AppSpacing.kButtonHeight,
-                        child: ElevatedButton.icon(
-                          key: const Key('btn-confirm-pay'),
-                          onPressed: provider.isLoading
-                              ? null
-                              : () async {
-                                  if (!formKey.currentState!.validate()) {
-                                    return;
-                                  }
-                                  int? buyerAmt;
-                                  if (isPwyw) {
-                                    final val = int.tryParse(
-                                        pwywController.text.trim());
-                                    if (val != null) {
-                                      buyerAmt = val * 100;
-                                    }
-                                  }
-                                  await consumerCtx
-                                      .read<PaymentProvider>()
-                                      .initiatePayment(
-                                        slug: slug,
-                                        email: emailController.text
-                                            .trim(),
-                                        phone: phoneController.text
-                                                .trim()
-                                                .isEmpty
-                                            ? null
-                                            : phoneController.text
-                                                .trim(),
-                                        buyerAmount: buyerAmt,
-                                      );
-                                },
-                          icon: provider.isLoading
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.lock_open_rounded,
-                                  size: 20),
-                          label: Text(
-                            provider.isLoading
-                                ? 'Redirection…'
-                                : 'Payer avec Paystack',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.kAccent,
-                            foregroundColor: Colors.white,
-                            elevation: 4,
-                            shadowColor: AppColors.kAccent
-                                .withValues(alpha: 0.35),
-                            shape: const StadiumBorder(),
-                            textStyle: const TextStyle(
-                              fontFamily: 'Plus Jakarta Sans',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         );
       },
-    ).whenComplete(() {
-      emailController.dispose();
-      phoneController.dispose();
-      pwywController.dispose();
-    });
+    );
+  }
+}
+
+// ─── _ConsentRow ──────────────────────────────────────────────────────────────
+
+class _ConsentRow extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final String text;
+  final bool isLast;
+
+  const _ConsentRow({
+    required this.value,
+    required this.onChanged,
+    required this.text,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: () => onChanged(!value),
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  margin: const EdgeInsets.only(top: 1),
+                  decoration: BoxDecoration(
+                    color: value ? _kBlueDark : Colors.transparent,
+                    borderRadius: BorderRadius.circular(3),
+                    border: Border.all(
+                      color: value ? _kBlueDark : _kInk,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: value
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: GoogleFonts.ibmPlexMono(
+                      fontSize: 11,
+                      color: _kInk,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (!isLast)
+          Divider(height: 1, thickness: 1, color: _kInk.withValues(alpha: 0.10)),
+      ],
+    );
+  }
+}
+
+// ─── _LogoPill ────────────────────────────────────────────────────────────────
+
+class _LogoPill extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFF1240B8), Color(0xFF1A52CC), Color(0xFF1E5FD8)],
+        ),
+        borderRadius: BorderRadius.circular(100),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x4D1240B8),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        'SeeMi',
+        style: TextStyle(
+          fontFamily: 'ADLaM Display',
+          color: Colors.white,
+          fontSize: 18,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── _PayButton ───────────────────────────────────────────────────────────────
+
+class _PayButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  const _PayButton({
+    required this.label,
+    required this.color,
+    this.onPressed,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onPressed == null;
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: disabled ? color.withValues(alpha: 0.45) : color,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: _kInk, width: 2),
+          boxShadow: disabled
+              ? null
+              : const [
+                  BoxShadow(color: _kInk, offset: Offset(4, 4), blurRadius: 0),
+                ],
+        ),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            child: Center(
+              child: loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.lock_open_rounded,
+                            color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          label.toUpperCase(),
+                          style: GoogleFonts.bebasNeue(
+                            color: Colors.white,
+                            fontSize: 18,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── _InkBadge ────────────────────────────────────────────────────────────────
+
+class _InkBadge extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String label;
+
+  const _InkBadge({
+    required this.color,
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: GoogleFonts.ibmPlexMono(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── _InkTextField ────────────────────────────────────────────────────────────
+
+class _InkTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final IconData prefixIcon;
+  final TextInputType keyboardType;
+  final FormFieldValidator<String>? validator;
+
+  const _InkTextField({
+    required this.controller,
+    required this.hintText,
+    required this.prefixIcon,
+    this.keyboardType = TextInputType.text,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: GoogleFonts.ibmPlexMono(
+        fontSize: 14,
+        color: _kInk,
+      ),
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: GoogleFonts.ibmPlexMono(fontSize: 13, color: _kMuted),
+        filled: true,
+        fillColor: _kBg,
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 14, right: 10),
+          child: Icon(prefixIcon, color: _kMuted, size: 18),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 44),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: _kInk, width: 2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: _kInk, width: 2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: _kBlueDark, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: _kError, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: _kError, width: 2),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
   }
 }
 
@@ -1026,12 +1269,13 @@ class _LoadingState extends StatelessWidget {
             height: 72,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppColors.kPrimary.withValues(alpha: 0.08),
+              color: _kBlue.withValues(alpha: 0.10),
+              border: Border.all(color: _kBlueDark, width: 2),
             ),
             child: const Padding(
               padding: EdgeInsets.all(20),
               child: CircularProgressIndicator(
-                color: AppColors.kPrimary,
+                color: _kBlueDark,
                 strokeWidth: 2.5,
               ),
             ),
@@ -1039,11 +1283,7 @@ class _LoadingState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(
-              fontFamily: 'Plus Jakarta Sans',
-              fontSize: 14,
-              color: AppColors.kTextSecondary,
-            ),
+            style: GoogleFonts.ibmPlexMono(fontSize: 13, color: _kMuted),
           ),
         ],
       ),
@@ -1055,7 +1295,8 @@ class _LoadingState extends StatelessWidget {
 
 class _ErrorState extends StatelessWidget {
   final String message;
-  const _ErrorState({required this.message});
+  final bool isNotFound;
+  const _ErrorState({required this.message, this.isNotFound = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1069,23 +1310,55 @@ class _ErrorState extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.kError.withValues(alpha: 0.08),
+                color: _kError.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
+                border: Border.all(color: _kError, width: 2),
               ),
-              child: const Icon(Icons.lock_outline_rounded,
-                  color: AppColors.kError, size: 38),
+              child: Icon(
+                isNotFound
+                    ? Icons.hide_source_rounded
+                    : Icons.lock_outline_rounded,
+                color: _kError,
+                size: 38,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
               message,
-              style: const TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 14,
-                color: AppColors.kTextSecondary,
+              style: GoogleFonts.ibmPlexMono(
+                fontSize: 13,
+                color: _kMuted,
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
+            if (isNotFound) ...[
+              const SizedBox(height: 24),
+              // Retour vers l'accueil web ou l'app si installée
+              FilledButton.icon(
+                onPressed: () async {
+                  final homeUri = Uri.parse('https://seemi.click');
+                  if (await canLaunchUrl(homeUri)) {
+                    await launchUrl(homeUri,
+                        mode: LaunchMode.externalApplication);
+                  }
+                },
+                icon: const Icon(Icons.home_rounded, size: 18),
+                label: const Text(
+                  'Retour à l\'accueil',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kBlueDark,
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 14),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1129,8 +1402,8 @@ class _BlurredImageWithLock extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.18),
-                  Colors.black.withValues(alpha: 0.56),
+                  Colors.black.withValues(alpha: 0.20),
+                  Colors.black.withValues(alpha: 0.60),
                 ],
               ),
             ),
@@ -1145,13 +1418,14 @@ class _BlurredImageWithLock extends StatelessWidget {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: AppColors.kAccent,
+                    color: _kBlueDark,
                     shape: BoxShape.circle,
-                    boxShadow: [
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [
                       BoxShadow(
-                        color: AppColors.kAccent.withValues(alpha: 0.45),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
+                        color: Color(0x661240B8),
+                        blurRadius: 24,
+                        offset: Offset(0, 6),
                       ),
                     ],
                   ),
@@ -1164,19 +1438,18 @@ class _BlurredImageWithLock extends StatelessWidget {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 6),
+                      horizontal: 16, vertical: 7),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.kRadiusPill),
+                    color: _kBlueDark,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.white, width: 1.5),
                   ),
                   child: Text(
                     '$priceFcfa FCFA pour débloquer',
-                    style: const TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
+                    style: GoogleFonts.bebasNeue(
                       color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      letterSpacing: 1.5,
                     ),
                   ),
                 ),
@@ -1197,93 +1470,13 @@ class _ImagePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.kBgElevated,
+      color: const Color(0xFFE5E2DC),
       child: const Center(
         child: Icon(
           Icons.image_outlined,
-          color: AppColors.kTextTertiary,
+          color: _kMuted,
           size: 64,
         ),
-      ),
-    );
-  }
-}
-
-// ─── _SheetPillField ──────────────────────────────────────────────────────────
-
-class _SheetPillField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final IconData prefixIcon;
-  final TextInputType keyboardType;
-  final FormFieldValidator<String>? validator;
-
-  const _SheetPillField({
-    required this.controller,
-    required this.hintText,
-    required this.prefixIcon,
-    this.keyboardType = TextInputType.text,
-    this.validator,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
-      style: const TextStyle(
-        fontFamily: 'Plus Jakarta Sans',
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-        color: AppColors.kTextPrimary,
-      ),
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(
-          fontFamily: 'Plus Jakarta Sans',
-          fontSize: 15,
-          color: AppColors.kTextTertiary,
-        ),
-        filled: true,
-        fillColor: AppColors.kBgElevated,
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 10),
-          child:
-              Icon(prefixIcon, color: AppColors.kTextSecondary, size: 20),
-        ),
-        prefixIconConstraints:
-            const BoxConstraints(minWidth: 48),
-        border: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(AppSpacing.kRadiusPill),
-          borderSide: const BorderSide(color: AppColors.kBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(AppSpacing.kRadiusPill),
-          borderSide: const BorderSide(color: AppColors.kBorder),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(AppSpacing.kRadiusPill),
-          borderSide: const BorderSide(
-              color: AppColors.kPrimary, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(AppSpacing.kRadiusPill),
-          borderSide: const BorderSide(
-              color: AppColors.kError, width: 1.5),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius:
-              BorderRadius.circular(AppSpacing.kRadiusPill),
-          borderSide: const BorderSide(
-              color: AppColors.kError, width: 1.5),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20, vertical: 18),
       ),
     );
   }
@@ -1305,9 +1498,12 @@ class _SignUpIncentiveBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.kAccent.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusXl),
-        border: Border.all(color: AppColors.kAccent.withValues(alpha: 0.22)),
+        color: _kPaper,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _kInk, width: 2),
+        boxShadow: const [
+          BoxShadow(color: Color(0xCC0A0A0A), offset: Offset(4, 4), blurRadius: 0),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1319,36 +1515,35 @@ class _SignUpIncentiveBanner extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.kAccent.withValues(alpha: 0.12),
+                  color: _kBlueDark,
                   shape: BoxShape.circle,
+                  border: Border.all(color: _kInk, width: 1.5),
                 ),
                 child: const Icon(
                   Icons.person_add_rounded,
-                  color: AppColors.kAccent,
+                  color: Colors.white,
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Retrouvez vos achats',
-                      style: TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.kTextPrimary,
+                      style: GoogleFonts.bebasNeue(
+                        fontSize: 16,
+                        color: _kInk,
+                        letterSpacing: 1,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Créez un compte gratuit pour accéder à nouveau à ce contenu à tout moment.',
-                      style: TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 13,
-                        color: AppColors.kTextSecondary,
+                      style: GoogleFonts.ibmPlexMono(
+                        fontSize: 12,
+                        color: _kMuted,
                         height: 1.45,
                       ),
                     ),
@@ -1358,31 +1553,19 @@ class _SignUpIncentiveBanner extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          ElevatedButton.icon(
+          _PayButton(
+            label: 'Créer mon compte',
+            color: _kBlueDark,
             onPressed: onSignUp,
-            icon: const Icon(Icons.person_add_rounded, size: 18),
-            label: const Text('Créer mon compte'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.kAccent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: const StadiumBorder(),
-              textStyle: const TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
           ),
           Center(
             child: TextButton(
               onPressed: onDismiss,
-              child: const Text(
+              child: Text(
                 'Plus tard',
-                style: TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
+                style: GoogleFonts.ibmPlexMono(
                   fontSize: 12,
-                  color: AppColors.kTextTertiary,
+                  color: _kMuted,
                 ),
               ),
             ),
@@ -1410,8 +1593,7 @@ class _FlashCountdownState extends State<_FlashCountdown> {
   void initState() {
     super.initState();
     _update();
-    _timer = Timer.periodic(
-        const Duration(seconds: 1), (_) => _update());
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _update());
   }
 
   void _update() {
@@ -1436,24 +1618,22 @@ class _FlashCountdownState extends State<_FlashCountdown> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFFF6B00).withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: const Color(0xFFFF6B00).withValues(alpha: 0.30)),
+        color: _kOrange.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _kOrange, width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.local_fire_department_rounded,
-              size: 13, color: Color(0xFFFF6B00)),
+              size: 13, color: _kOrange),
           const SizedBox(width: 4),
           Text(
             'Flash · $h:$m:$s',
-            style: const TextStyle(
-              fontFamily: 'Plus Jakarta Sans',
+            style: GoogleFonts.ibmPlexMono(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: Color(0xFFFF6B00),
+              color: _kOrange,
             ),
           ),
         ],

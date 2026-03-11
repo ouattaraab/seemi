@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:ppv_app/core/config/app_config.dart';
 import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
@@ -8,6 +9,7 @@ import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/auth/presentation/profile_provider.dart';
 import 'package:ppv_app/features/content/domain/content.dart';
 import 'package:ppv_app/features/content/presentation/content_provider.dart';
+import 'package:ppv_app/features/sharing/data/share_repository.dart';
 import 'package:ppv_app/features/notifications/presentation/notification_list_screen.dart';
 import 'package:ppv_app/features/notifications/presentation/notification_provider.dart';
 import 'package:ppv_app/features/payout/presentation/payout_method_provider.dart';
@@ -482,7 +484,29 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Performance', style: AppTextStyles.kTitleLarge),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Performance', style: AppTextStyles.kTitleLarge),
+                  TextButton(
+                    onPressed: () => context.push(RouteNames.kRouteAnalytics),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Voir tout',
+                      style: TextStyle(
+                        fontFamily: 'Plus Jakarta Sans',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.kPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -880,19 +904,28 @@ class _ContentCard extends StatelessWidget {
             Positioned(
               top: 14,
               right: 14,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.18),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.22)),
-                ),
-                child: const Icon(
-                  Icons.share_rounded,
-                  color: Colors.white,
-                  size: 16,
+              child: GestureDetector(
+                onTap: () {
+                  final slug = content.slug;
+                  if (slug == null) return;
+                  final url = content.shareUrl ??
+                      '${AppConfig.webBaseUrl}/c/$slug';
+                  ShareRepositoryImpl().shareContent(url);
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.18),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.22)),
+                  ),
+                  child: const Icon(
+                    Icons.share_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                 ),
               ),
             ),

@@ -16,6 +16,9 @@ class ContentDetailProvider extends ChangeNotifier {
   PublicContentData? get content => _content;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get isNotFound => _isNotFound;
+
+  bool _isNotFound = false;
 
   ContentDetailProvider({
     required String slug,
@@ -30,6 +33,7 @@ class ContentDetailProvider extends ChangeNotifier {
       _content = data;
       MobileEventService.instance.track('content.viewed', payload: {'slug': slug});
     } on ApiException catch (e) {
+      _isNotFound = e.isNotFound;
       _error = e.isNotFound
           ? 'Ce contenu n\'est plus disponible.'
           : 'Une erreur est survenue. Réessayez.';

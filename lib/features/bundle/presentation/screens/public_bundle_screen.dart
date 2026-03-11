@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
@@ -8,11 +10,17 @@ import 'package:ppv_app/features/bundle/domain/bundle.dart';
 
 /// Écran public d'un bundle — accessible via deep link `/b/{slug}`.
 ///
-/// Ne nécessite pas d'authentification.
+/// Si [paymentReference] est fourni (callback Paystack), vérifie automatiquement
+/// le paiement et affiche les contenus débloqués.
 class PublicBundleScreen extends StatefulWidget {
   final String slug;
+  final String? paymentReference;
 
-  const PublicBundleScreen({super.key, required this.slug});
+  const PublicBundleScreen({
+    super.key,
+    required this.slug,
+    this.paymentReference,
+  });
 
   @override
   State<PublicBundleScreen> createState() => _PublicBundleScreenState();
@@ -23,7 +31,9 @@ class _PublicBundleScreenState extends State<PublicBundleScreen> {
 
   Bundle? _bundle;
   bool _isLoading = true;
+  bool _isVerifying = false;
   String? _error;
+  String? _confirmedReference;
 
   @override
   void initState() {
@@ -37,12 +47,26 @@ class _PublicBundleScreenState extends State<PublicBundleScreen> {
       _error = null;
     });
     try {
-      final bundle = await _repository.getPublicBundle(widget.slug);
+      // Charge le bundle avec la référence si disponible (pour obtenir isPaid)
+      final bundle = await _repository.getPublicBundle(
+        widget.slug,
+        ref: widget.paymentReference,
+      );
+
       if (mounted) {
         setState(() {
           _bundle = bundle;
           _isLoading = false;
+          if (bundle.isPaid && widget.paymentReference != null) {
+            _confirmedReference = widget.paymentReference;
+          }
         });
+      }
+
+      // Si la référence est fournie mais le paiement n'est pas encore confirmé,
+      // tenter la vérification (cas webhook Paystack retardé)
+      if (!bundle.isPaid && widget.paymentReference != null) {
+        await _verifyAndReload(widget.paymentReference!);
       }
     } catch (e) {
       if (mounted) {
@@ -54,16 +78,56 @@ class _PublicBundleScreenState extends State<PublicBundleScreen> {
     }
   }
 
+  Future<void> _verifyAndReload(String reference) async {
+    if (!mounted) return;
+    setState(() => _isVerifying = true);
+    try {
+      final success = await _repository.verifyPayment(reference);
+      if (!mounted) return;
+      if (success) {
+        // Recharge avec la référence confirmée pour obtenir isPaid = true
+        final updated = await _repository.getPublicBundle(
+          widget.slug,
+          ref: reference,
+        );
+        if (mounted) {
+          setState(() {
+            _bundle = updated;
+            _confirmedReference = reference;
+            _isVerifying = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isVerifying = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isVerifying = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.kBgBase,
+        body: Center(child: CircularProgressIndicator(color: AppColors.kPrimary)),
+      );
+    }
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.kBgBase,
+        body: _ErrorView(message: _error!, onRetry: _loadBundle),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.kBgBase,
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.kPrimary))
-          : _error != null
-              ? _ErrorView(message: _error!, onRetry: _loadBundle)
-              : _BundleContent(bundle: _bundle!, repository: _repository),
+      body: _BundleContent(
+        bundle: _bundle!,
+        repository: _repository,
+        bundleReference: _confirmedReference,
+        isVerifying: _isVerifying,
+        onVerifyAndReload: _verifyAndReload,
+      ),
     );
   }
 }
@@ -73,11 +137,21 @@ class _PublicBundleScreenState extends State<PublicBundleScreen> {
 class _BundleContent extends StatelessWidget {
   final Bundle bundle;
   final BundleRepository repository;
+  final String? bundleReference;
+  final bool isVerifying;
+  final Future<void> Function(String ref) onVerifyAndReload;
 
-  const _BundleContent({required this.bundle, required this.repository});
+  const _BundleContent({
+    required this.bundle,
+    required this.repository,
+    required this.bundleReference,
+    required this.isVerifying,
+    required this.onVerifyAndReload,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isPaid = bundle.isPaid;
     final hasDiscount = bundle.discountPercent > 0;
     final avatarInitial = (bundle.creatorName?.isNotEmpty == true)
         ? bundle.creatorName![0].toUpperCase()
@@ -121,6 +195,63 @@ class _BundleContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── Badge débloqué ────────────────────────────────────
+                if (isPaid) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.kSuccess.withValues(alpha: 0.10),
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.kRadiusMd),
+                      border: Border.all(
+                          color: AppColors.kSuccess.withValues(alpha: 0.30)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            color: AppColors.kSuccess, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Bundle débloqué — Appuyez sur un contenu pour le voir',
+                          style: TextStyle(
+                            fontFamily: 'Plus Jakarta Sans',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.kSuccess,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                // ── Vérification en cours ─────────────────────────────
+                if (isVerifying) ...[
+                  const Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.kPrimary),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        'Vérification du paiement…',
+                        style: TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 13,
+                          color: AppColors.kTextSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
                 // ── Créateur ─────────────────────────────────────────
                 if (bundle.creatorName != null) ...[
                   Row(
@@ -211,105 +342,111 @@ class _BundleContent extends StatelessWidget {
                       scrollDirection: Axis.horizontal,
                       itemCount: bundle.items.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (_, i) =>
-                          _ItemPreviewCard(item: bundle.items[i]),
+                      itemBuilder: (ctx, i) => _ItemPreviewCard(
+                        item: bundle.items[i],
+                        isPaid: isPaid,
+                        bundleReference: bundleReference,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
                 ],
 
                 // ── Prix ─────────────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.kBgSurface,
-                    borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-                    border: Border.all(color: AppColors.kBorder),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Prix du bundle',
-                              style: AppTextStyles.kCaption,
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                if (hasDiscount) ...[
+                if (!isPaid) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.kBgSurface,
+                      borderRadius:
+                          BorderRadius.circular(AppSpacing.kRadiusMd),
+                      border: Border.all(color: AppColors.kBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Prix du bundle',
+                                style: AppTextStyles.kCaption,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  if (hasDiscount) ...[
+                                    Text(
+                                      '${_fmt(bundle.totalPriceFcfa)} FCFA',
+                                      style: AppTextStyles.kBodyMedium.copyWith(
+                                        decoration: TextDecoration.lineThrough,
+                                        color: AppColors.kTextTertiary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
                                   Text(
-                                    '${_fmt(bundle.totalPriceFcfa)} FCFA',
-                                    style: AppTextStyles.kBodyMedium.copyWith(
-                                      decoration: TextDecoration.lineThrough,
-                                      color: AppColors.kTextTertiary,
+                                    '${_fmt(bundle.discountedPriceFcfa)} FCFA',
+                                    style: const TextStyle(
+                                      fontFamily: 'Plus Jakarta Sans',
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.kSuccess,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
                                 ],
-                                Text(
-                                  '${_fmt(bundle.discountedPriceFcfa)} FCFA',
-                                  style: const TextStyle(
-                                    fontFamily: 'Plus Jakarta Sans',
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.kSuccess,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (hasDiscount)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppColors.kSuccess.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(
-                                AppSpacing.kRadiusPill),
-                          ),
-                          child: Text(
-                            '-${bundle.discountPercent}%',
-                            style: const TextStyle(
-                              fontFamily: 'Plus Jakarta Sans',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.kSuccess,
-                            ),
+                              ),
+                            ],
                           ),
                         ),
-                    ],
+                        if (hasDiscount)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.kSuccess.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(
+                                  AppSpacing.kRadiusPill),
+                            ),
+                            child: Text(
+                              '-${bundle.discountPercent}%',
+                              style: const TextStyle(
+                                fontFamily: 'Plus Jakarta Sans',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.kSuccess,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // ── CTA ───────────────────────────────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  height: AppSpacing.kButtonHeight,
-                  child: FilledButton.icon(
-                    onPressed: () => _openPaymentSheet(context),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.kPrimary,
-                      shape: const StadiumBorder(),
-                      textStyle: const TextStyle(
-                        fontFamily: 'Plus Jakarta Sans',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                  // ── CTA ─────────────────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    height: AppSpacing.kButtonHeight,
+                    child: FilledButton.icon(
+                      onPressed: () => _openPaymentSheet(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.kPrimary,
+                        shape: const StadiumBorder(),
+                        textStyle: const TextStyle(
+                          fontFamily: 'Plus Jakarta Sans',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      icon: const Icon(Icons.lock_open_rounded, size: 20),
+                      label: Text(
+                        'Débloquer le bundle — ${_fmt(bundle.discountedPriceFcfa)} FCFA',
                       ),
                     ),
-                    icon: const Icon(Icons.lock_open_rounded, size: 20),
-                    label: Text(
-                      'Débloquer le bundle — ${_fmt(bundle.discountedPriceFcfa)} FCFA',
-                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 40),
               ],
             ),
@@ -330,6 +467,10 @@ class _BundleContent extends StatelessWidget {
       builder: (_) => _BundlePaymentSheet(
         bundle: bundle,
         repository: repository,
+        onPaymentConfirmed: (ref) {
+          Navigator.of(context).pop();
+          onVerifyAndReload(ref);
+        },
       ),
     );
   }
@@ -350,95 +491,112 @@ class _BundleContent extends StatelessWidget {
 
 class _ItemPreviewCard extends StatelessWidget {
   final BundleItem item;
-  const _ItemPreviewCard({required this.item});
+  final bool isPaid;
+  final String? bundleReference;
+
+  const _ItemPreviewCard({
+    required this.item,
+    required this.isPaid,
+    required this.bundleReference,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 110,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Thumbnail
-            item.blurUrl.isNotEmpty
-                ? Image.network(
-                    item.blurUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+    return GestureDetector(
+      onTap: isPaid && item.slug.isNotEmpty
+          ? () {
+              final path = '/c/${item.slug}';
+              final ref = bundleReference;
+              context.push(ref != null ? '$path?reference=$ref' : path);
+            }
+          : null,
+      child: SizedBox(
+        width: 110,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Thumbnail
+              item.blurUrl.isNotEmpty
+                  ? Image.network(
+                      item.blurUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppColors.kBgElevated,
+                        child: const Icon(Icons.image_outlined,
+                            color: AppColors.kTextTertiary),
+                      ),
+                    )
+                  : Container(
                       color: AppColors.kBgElevated,
                       child: const Icon(Icons.image_outlined,
                           color: AppColors.kTextTertiary),
                     ),
-                  )
-                : Container(
-                    color: AppColors.kBgElevated,
-                    child: const Icon(Icons.image_outlined,
-                        color: AppColors.kTextTertiary),
-                  ),
-            // Gradient
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.65),
-                    ],
-                    stops: const [0.5, 1.0],
+              // Gradient
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.65),
+                      ],
+                      stops: const [0.5, 1.0],
+                    ),
                   ),
                 ),
               ),
-            ),
-            // Lock icon
-            const Center(
-              child: Icon(
-                Icons.lock_rounded,
-                color: Colors.white70,
-                size: 28,
-              ),
-            ),
-            // Type badge
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(6),
-                ),
+              // Lock / unlock icon
+              Center(
                 child: Icon(
-                  item.type == 'video'
-                      ? Icons.videocam_rounded
-                      : item.type == 'audio'
-                          ? Icons.audiotrack_rounded
-                          : Icons.image_rounded,
-                  size: 11,
-                  color: Colors.white,
+                  isPaid
+                      ? Icons.play_circle_fill_rounded
+                      : Icons.lock_rounded,
+                  color: isPaid ? Colors.white : Colors.white70,
+                  size: 28,
                 ),
               ),
-            ),
-            // Price
-            Positioned(
-              bottom: 6,
-              left: 6,
-              right: 6,
-              child: Text(
-                '${_fmt(item.priceFcfa)} F',
-                style: const TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+              // Type badge
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    item.type == 'video'
+                        ? Icons.videocam_rounded
+                        : Icons.image_rounded,
+                    size: 11,
+                    color: Colors.white,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+              // Price / unlocked label
+              Positioned(
+                bottom: 6,
+                left: 6,
+                right: 6,
+                child: Text(
+                  isPaid ? 'Voir' : '${_fmt(item.priceFcfa)} F',
+                  style: TextStyle(
+                    fontFamily: 'Plus Jakarta Sans',
+                    color: isPaid ? AppColors.kSuccess : Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -461,8 +619,13 @@ class _ItemPreviewCard extends StatelessWidget {
 class _BundlePaymentSheet extends StatefulWidget {
   final Bundle bundle;
   final BundleRepository repository;
+  final void Function(String reference) onPaymentConfirmed;
 
-  const _BundlePaymentSheet({required this.bundle, required this.repository});
+  const _BundlePaymentSheet({
+    required this.bundle,
+    required this.repository,
+    required this.onPaymentConfirmed,
+  });
 
   @override
   State<_BundlePaymentSheet> createState() => _BundlePaymentSheetState();
@@ -475,7 +638,6 @@ class _BundlePaymentSheetState extends State<_BundlePaymentSheet> {
   bool _isLoading = false;
   bool _isVerifying = false;
   String? _error;
-  String? _successMessage;
   String? _pendingReference;
 
   @override
@@ -501,7 +663,6 @@ class _BundlePaymentSheetState extends State<_BundlePaymentSheet> {
       final authUrl = result['authorizationUrl']!;
       final reference = result['reference']!;
 
-      // Capture context before async gap
       if (!mounted) return;
 
       _pendingReference = reference;
@@ -510,10 +671,7 @@ class _BundlePaymentSheetState extends State<_BundlePaymentSheet> {
       final uri = Uri.parse(authUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-        // After returning from browser, show verify button
-        if (mounted) {
-          setState(() {});
-        }
+        if (mounted) setState(() {});
       } else {
         if (mounted) {
           setState(() {
@@ -540,16 +698,11 @@ class _BundlePaymentSheetState extends State<_BundlePaymentSheet> {
     });
 
     try {
-      final success =
-          await widget.repository.verifyPayment(_pendingReference!);
+      final success = await widget.repository.verifyPayment(_pendingReference!);
       if (!mounted) return;
 
       if (success) {
-        setState(() {
-          _successMessage = 'Paiement confirmé ! Vos contenus sont débloqués.';
-          _isVerifying = false;
-          _pendingReference = null;
-        });
+        widget.onPaymentConfirmed(_pendingReference!);
       } else {
         setState(() {
           _error = 'Paiement non encore confirmé. Réessayez dans quelques instants.';
@@ -590,10 +743,7 @@ class _BundlePaymentSheetState extends State<_BundlePaymentSheet> {
           ),
 
           // Titre
-          Text(
-            'Débloquer le bundle',
-            style: AppTextStyles.kTitleLarge,
-          ),
+          Text('Débloquer le bundle', style: AppTextStyles.kTitleLarge),
           const SizedBox(height: 4),
           Text(
             'Entrez votre email pour recevoir vos contenus.',
@@ -602,50 +752,7 @@ class _BundlePaymentSheetState extends State<_BundlePaymentSheet> {
           ),
           const SizedBox(height: 20),
 
-          // Succès
-          if (_successMessage != null) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.kSuccess.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-                border: Border.all(
-                    color: AppColors.kSuccess.withValues(alpha: 0.30)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.check_circle_rounded,
-                      color: AppColors.kSuccess, size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _successMessage!,
-                      style: AppTextStyles.kBodyMedium
-                          .copyWith(color: AppColors.kSuccess),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: AppSpacing.kButtonHeight,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.kSuccess,
-                  shape: const StadiumBorder(),
-                ),
-                child: const Text(
-                  'Fermer',
-                  style: TextStyle(
-                      fontFamily: 'Plus Jakarta Sans',
-                      fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ] else if (_pendingReference != null) ...[
+          if (_pendingReference != null) ...[
             // Vérification en attente
             Text(
               'Le paiement a été initié. Revenez après avoir payé pour confirmer.',
@@ -716,8 +823,7 @@ class _BundlePaymentSheetState extends State<_BundlePaymentSheet> {
                         BorderRadius.circular(AppSpacing.kRadiusMd),
                   ),
                   errorBorder: OutlineInputBorder(
-                    borderSide:
-                        const BorderSide(color: AppColors.kError),
+                    borderSide: const BorderSide(color: AppColors.kError),
                     borderRadius:
                         BorderRadius.circular(AppSpacing.kRadiusMd),
                   ),

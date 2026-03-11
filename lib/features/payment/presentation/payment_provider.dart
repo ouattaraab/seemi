@@ -8,6 +8,17 @@ import 'package:ppv_app/features/payment/data/payment_repository.dart';
 ///
 /// Conforme au pattern obligatoire : état loading / error / data + ChangeNotifier.
 class PaymentProvider extends ChangeNotifier {
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
   final PaymentRepository _repository;
 
   bool _isLoading = false;
@@ -71,7 +82,7 @@ class PaymentProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     _authorizationUrl = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       MobileEventService.instance.track('payment.tapped', payload: {'slug': slug});
@@ -102,7 +113,7 @@ class PaymentProvider extends ChangeNotifier {
       _error = 'Impossible d\'initier le paiement. Vérifiez votre connexion.';
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -119,7 +130,7 @@ class PaymentProvider extends ChangeNotifier {
     _isPaid = false;
     _originalUrl = null;
     _paymentFailed = false;
-    notifyListeners();
+    _safeNotify();
 
     const maxAttempts = 20;
     const pollInterval = Duration(seconds: 3);
@@ -143,12 +154,13 @@ class PaymentProvider extends ChangeNotifier {
             'slug':      slug,
             'reference': reference,
           });
-          notifyListeners();
 
-          // F13 — Résoudre le type de média (HLS vs R2) en arrière-plan
+          // F13 — Lancer la résolution AVANT notifyListeners pour éviter le flash
+          // du widget de fallback (RevealAnimation avec l'URL signée JSON).
           if (result.originalUrl != null) {
-            _resolveMedia(result.originalUrl!);
+            _resolveMedia(result.originalUrl!); // synchrone jusqu'au 1er await
           }
+          _safeNotify();
           return;
         }
         // Sortie immédiate si le paiement est explicitement échoué
@@ -156,7 +168,7 @@ class PaymentProvider extends ChangeNotifier {
           _paymentFailed = true;
           _isCheckingReveal = false;
           _pendingReference = null;
-          notifyListeners();
+          _safeNotify();
           return;
         }
       } catch (_) {
@@ -171,7 +183,7 @@ class PaymentProvider extends ChangeNotifier {
     // Polling épuisé sans confirmation : conserver _pendingReference pour
     // permettre à l'utilisateur de réessayer manuellement.
     _isCheckingReveal = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   /// F13 — Résout le type de média réel depuis l'URL signée.
@@ -180,7 +192,7 @@ class PaymentProvider extends ChangeNotifier {
   /// et récupère `{type: 'hls'|'r2', url: '...'}`.
   Future<void> _resolveMedia(String signedUrl) async {
     _isResolvingMedia = true;
-    notifyListeners();
+    _safeNotify();
     try {
       final result = await _publicContentRepository.getOriginalMedia(signedUrl);
       _mediaType        = result['type'];
@@ -191,7 +203,7 @@ class PaymentProvider extends ChangeNotifier {
       _resolvedMediaUrl = signedUrl;
     } finally {
       _isResolvingMedia = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -208,6 +220,6 @@ class PaymentProvider extends ChangeNotifier {
     _mediaType = null;
     _resolvedMediaUrl = null;
     _isResolvingMedia = false;
-    notifyListeners();
+    _safeNotify();
   }
 }

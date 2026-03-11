@@ -280,7 +280,9 @@ class AppRouter {
         path: RouteNames.kRouteBundlePublic,
         builder: (context, state) {
           final slug = state.pathParameters['slug']!;
-          return PublicBundleScreen(slug: slug);
+          final paymentRef = state.uri.queryParameters['reference'] ??
+              state.uri.queryParameters['trxref'];
+          return PublicBundleScreen(slug: slug, paymentReference: paymentRef);
         },
       ),
     ],

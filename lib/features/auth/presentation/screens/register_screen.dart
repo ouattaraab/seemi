@@ -348,7 +348,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => Navigator.of(context).maybePop(),
+            onTap: () => context.canPop()
+                ? context.pop()
+                : context.go(RouteNames.kRouteLogin),
             child: Container(
               width: 40,
               height: 40,

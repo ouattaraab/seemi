@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:ppv_app/core/config/app_config.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/content/domain/content.dart';
 import 'package:ppv_app/features/content/presentation/content_provider.dart';
+import 'package:ppv_app/features/sharing/data/share_repository.dart';
 
 /// Page de détail d'un contenu côté créateur.
 ///
@@ -85,6 +87,73 @@ class _CreatorContentDetailScreenState
     });
   }
 
+  Future<void> _shareContent() async {
+    final slug = widget.content.slug;
+    if (slug == null) return;
+    final url = widget.content.shareUrl ??
+        '${AppConfig.webBaseUrl}/c/$slug';
+    await ShareRepositoryImpl().shareContent(url);
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Supprimer ce contenu ?',
+          style: TextStyle(
+            fontFamily: 'Plus Jakarta Sans',
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: const Text(
+          'Cette action est irréversible. Le contenu sera supprimé et les acheteurs ne pourront plus y accéder.',
+          style: TextStyle(fontFamily: 'Plus Jakarta Sans'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.kError,
+              shape: const StadiumBorder(),
+            ),
+            child: const Text(
+              'Supprimer',
+              style: TextStyle(fontFamily: 'Plus Jakarta Sans',
+                  fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final success = await context
+        .read<ContentProvider>()
+        .deleteContent(widget.content.id);
+
+    if (!mounted) return;
+    if (success) {
+      context.pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Contenu supprimé.'),
+          backgroundColor: AppColors.kSuccess,
+        ),
+      );
+    } else {
+      final err = context.read<ContentProvider>().deleteContentError
+          ?? 'Erreur lors de la suppression.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(err), backgroundColor: AppColors.kError),
+      );
+    }
+  }
+
   Future<void> _loadBuyers() async {
     setState(() {
       _loadingBuyers = true;
@@ -157,6 +226,24 @@ class _CreatorContentDetailScreenState
           ),
         ),
         centerTitle: false,
+        actions: [
+          // Bouton partager
+          if (widget.content.slug != null)
+            IconButton(
+              icon: const Icon(Icons.share_rounded,
+                  color: AppColors.kPrimary, size: 22),
+              tooltip: 'Partager',
+              onPressed: _shareContent,
+            ),
+          // Bouton supprimer
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded,
+                color: AppColors.kError, size: 22),
+            tooltip: 'Supprimer',
+            onPressed: _confirmDelete,
+          ),
+          const SizedBox(width: 4),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(

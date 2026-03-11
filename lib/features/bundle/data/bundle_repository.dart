@@ -18,7 +18,7 @@ abstract class BundleRepository {
 
   Future<void> deleteBundle(int id);
 
-  Future<Bundle> getPublicBundle(String slug);
+  Future<Bundle> getPublicBundle(String slug, {String? ref});
 
   /// Retourne `{authorizationUrl, reference}`.
   Future<Map<String, String>> initiatePayment({
@@ -108,9 +108,12 @@ class BundleRepositoryImpl implements BundleRepository {
   // ─── Public (no auth) ────────────────────────────────────────────────────
 
   @override
-  Future<Bundle> getPublicBundle(String slug) async {
+  Future<Bundle> getPublicBundle(String slug, {String? ref}) async {
     try {
-      final response = await _publicDio.get('/public/bundle/$slug');
+      final response = await _publicDio.get(
+        '/public/bundle/$slug',
+        queryParameters: ref != null ? {'ref': ref} : null,
+      );
       final data = response.data['data'] as Map<String, dynamic>;
       return Bundle.fromJson(data);
     } on DioException catch (e) {
@@ -148,7 +151,7 @@ class BundleRepositoryImpl implements BundleRepository {
         data: {'reference': reference},
       );
       final data = response.data['data'] as Map<String, dynamic>;
-      return data['success'] as bool? ?? false;
+      return (data['status'] as String?) == 'paid';
     } on DioException catch (e) {
       if (e.response != null) throw ApiException.fromDioException(e);
       throw NetworkException.fromDioException(e);
