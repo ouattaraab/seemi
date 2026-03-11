@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:ppv_app/core/config/app_config.dart';
@@ -53,9 +55,16 @@ void main() async {
     debugPrint('Firebase init error: $e');
   }
 
-  // Lancer l'app immédiatement pour éviter tout blocage sur l'écran blanc.
-  // Sentry est initialisé en arrière-plan seulement si le DSN est configuré.
-  runApp(const PpvApp());
+  // Attraper toutes les erreurs Flutter + Dart non gérées pour les afficher
+  // à l'écran en cas de crash au démarrage (utile en prod sur iOS bêta).
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+  };
+
+  runZonedGuarded(
+    () => runApp(const PpvApp()),
+    (error, stack) => debugPrint('runApp error: $error\n$stack'),
+  );
 
   if (AppConfig.sentryDsn.isNotEmpty) {
     SentryFlutter.init(
@@ -65,6 +74,23 @@ void main() async {
         options.tracesSampleRate = AppConfig.isProd ? 0.1 : 0.0;
       },
     ).ignore();
+  }
+}
+
+/// App minimale de debug — à supprimer une fois le rendu iOS validé.
+class _DebugApp extends StatelessWidget {
+  const _DebugApp();
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Color(0xFF0D0C1D),
+        body: Center(
+          child: Text('SeeMi OK', style: TextStyle(color: Colors.white, fontSize: 32)),
+        ),
+      ),
+    );
   }
 }
 
