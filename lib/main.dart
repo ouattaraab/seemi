@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:ppv_app/core/config/app_config.dart';
@@ -55,16 +53,7 @@ void main() async {
     debugPrint('Firebase init error: $e');
   }
 
-  // Attraper toutes les erreurs Flutter + Dart non gérées pour les afficher
-  // à l'écran en cas de crash au démarrage (utile en prod sur iOS bêta).
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-  };
-
-  runZonedGuarded(
-    () => runApp(const PpvApp()),
-    (error, stack) => debugPrint('runApp error: $error\n$stack'),
-  );
+  runApp(const PpvApp());
 
   if (AppConfig.sentryDsn.isNotEmpty) {
     SentryFlutter.init(
