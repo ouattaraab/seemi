@@ -1,7 +1,7 @@
 name: ppv_app
 description: "SeeMi — Plateforme de monétisation de contenu visuel pour créateurs africains."
 publish_to: 'none'
-version: 1.4.8+22
+version: 1.4.9+23
 
 environment:
   sdk: ">=3.11.0 <4.0.0"
