@@ -35,8 +35,12 @@ import 'package:ppv_app/features/wallet/presentation/wallet_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Bloquer l'app sur les devices compromis (jailbreak/root/dev mode)
-  if (await DeviceSecurity.isCompromised()) {
+  // Bloquer l'app sur les devices compromis (jailbreak/root/dev mode).
+  // Timeout 3s : sur iOS bêta (iOS 26+), le plugin peut ne jamais répondre
+  // → fail-open pour ne pas bloquer indéfiniment au démarrage.
+  final bool compromised = await DeviceSecurity.isCompromised()
+      .timeout(const Duration(seconds: 3), onTimeout: () => false);
+  if (compromised) {
     runApp(const _JailbreakWarningApp());
     return;
   }
