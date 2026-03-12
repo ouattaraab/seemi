@@ -25,6 +25,7 @@ class _PricingScreenState extends State<PricingScreen> {
   static const _suggested = [100, 200, 500, 1000];
 
   int? _selectedPriceFcfa;
+  bool _isFree = false;
   bool _tosAccepted = false;
   bool _published = false;
   final _customController = TextEditingController();
@@ -36,8 +37,7 @@ class _PricingScreenState extends State<PricingScreen> {
   }
 
   bool _canPublish(ContentProvider p) =>
-      _selectedPriceFcfa != null &&
-      _selectedPriceFcfa! >= 100 &&
+      (_isFree || (_selectedPriceFcfa != null && _selectedPriceFcfa! >= 100)) &&
       _tosAccepted &&
       !p.isPublishing;
 
@@ -45,25 +45,41 @@ class _PricingScreenState extends State<PricingScreen> {
 
   void _selectAmount(int amount) {
     setState(() {
+      _isFree = false;
       _selectedPriceFcfa = amount;
       _customController.clear();
+    });
+  }
+
+  void _toggleFree() {
+    setState(() {
+      _isFree = !_isFree;
+      if (_isFree) {
+        _selectedPriceFcfa = 0;
+        _customController.clear();
+      } else {
+        _selectedPriceFcfa = null;
+      }
     });
   }
 
   void _onCustomChanged(String val) {
     final n = int.tryParse(val);
     setState(() {
+      _isFree = false;
       _selectedPriceFcfa = (n != null && n >= 100) ? n : null;
     });
   }
 
   Future<void> _publish() async {
-    if (_selectedPriceFcfa == null || !_tosAccepted) return;
+    if (!_isFree && _selectedPriceFcfa == null) return;
+    if (!_tosAccepted) return;
     final provider = context.read<ContentProvider>();
     if (provider.isPublishing) return;
 
+    final price = _isFree ? 0 : _selectedPriceFcfa!;
     final success =
-        await provider.publishContent(widget.contentId, _selectedPriceFcfa!);
+        await provider.publishContent(widget.contentId, price);
     if (!mounted) return;
 
     if (success) {
@@ -164,24 +180,30 @@ class _PricingScreenState extends State<PricingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Montants suggérés ──────────────────────────────────────────
-        const _SectionLabel(label: 'MONTANT SUGGÉRÉ'),
-        const SizedBox(height: 12),
-        _buildAmountGrid(),
-        const SizedBox(height: 24),
+        // ── Toggle Gratuit ─────────────────────────────────────────────
+        _buildFreeToggle(),
+        const SizedBox(height: 20),
 
-        // ── Divider centré ─────────────────────────────────────────────
-        _buildDivider('Ou saisissez un montant'),
-        const SizedBox(height: 16),
+        // ── Montants suggérés (masqués si gratuit) ─────────────────────
+        if (!_isFree) ...[
+          const _SectionLabel(label: 'MONTANT SUGGÉRÉ'),
+          const SizedBox(height: 12),
+          _buildAmountGrid(),
+          const SizedBox(height: 24),
 
-        // ── Champ personnalisé ─────────────────────────────────────────
-        _buildCustomInput(),
+          // ── Divider centré ───────────────────────────────────────────
+          _buildDivider('Ou saisissez un montant'),
+          const SizedBox(height: 16),
+
+          // ── Champ personnalisé ───────────────────────────────────────
+          _buildCustomInput(),
+        ],
 
         // ── Gains estimés (animé) ──────────────────────────────────────
         AnimatedSize(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
-          child: _selectedPriceFcfa != null
+          child: (_isFree || _selectedPriceFcfa != null)
               ? Padding(
                   padding: const EdgeInsets.only(top: 14),
                   child: _buildEarningsCard(),
@@ -236,6 +258,102 @@ class _PricingScreenState extends State<PricingScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Toggle Gratuit ────────────────────────────────────────────────────────
+
+  Widget _buildFreeToggle() {
+    return GestureDetector(
+      onTap: _toggleFree,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: _isFree
+              ? AppColors.kSuccess.withValues(alpha: 0.08)
+              : AppColors.kBgSurface,
+          borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+          border: Border.all(
+            color: _isFree
+                ? AppColors.kSuccess.withValues(alpha: 0.40)
+                : AppColors.kBorder,
+            width: _isFree ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _isFree
+                    ? AppColors.kSuccess.withValues(alpha: 0.12)
+                    : AppColors.kBgElevated,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _isFree ? Icons.lock_open_rounded : Icons.card_gift_card_rounded,
+                size: 18,
+                color: _isFree ? AppColors.kSuccess : AppColors.kTextTertiary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Contenu gratuit',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _isFree
+                          ? AppColors.kSuccess
+                          : AppColors.kTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Accès libre — capturez email & téléphone',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 12,
+                      color: AppColors.kTextTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Toggle switch
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 44,
+              height: 26,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(13),
+                color: _isFree ? AppColors.kSuccess : AppColors.kBorder,
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 180),
+                alignment: _isFree
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -400,6 +518,63 @@ class _PricingScreenState extends State<PricingScreen> {
   // ── Carte gains estimés ───────────────────────────────────────────────────
 
   Widget _buildEarningsCard() {
+    if (_isFree) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.kPrimary.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(AppSpacing.kRadiusLg),
+          border: Border.all(
+            color: AppColors.kPrimary.withValues(alpha: 0.20),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.kPrimary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.people_alt_outlined,
+                size: 18,
+                color: AppColors.kPrimary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Capture de leads',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 12,
+                      color: AppColors.kTextSecondary,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Email + téléphone collectés',
+                    style: TextStyle(
+                      fontFamily: 'Plus Jakarta Sans',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.kPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final gains = (_selectedPriceFcfa! * 0.80).round();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -592,7 +767,7 @@ class _PricingScreenState extends State<PricingScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Prix : $_selectedPriceFcfa FCFA',
+                _isFree ? 'Prix : Gratuit' : 'Prix : $_selectedPriceFcfa FCFA',
                 style: const TextStyle(
                   fontFamily: 'Plus Jakarta Sans',
                   fontSize: 15,
