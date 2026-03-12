@@ -7,8 +7,12 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Initialiser le moteur Flutter en premier (crée la window + rootViewController),
+    // puis enregistrer les plugins — flutter_contacts v1.x accède à window!!.rootViewController
+    // à l'enregistrement et crashe si la window n'est pas encore créée.
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
     GeneratedPluginRegistrant.register(with: self)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    return result
   }
 
   // F-3 — Masque l'UI quand l'app passe en arrière-plan pour éviter que le
