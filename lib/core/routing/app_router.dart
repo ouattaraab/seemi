@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -37,17 +38,22 @@ import 'package:ppv_app/features/auto_withdrawal/presentation/auto_withdrawal_pr
 import 'package:ppv_app/features/auto_withdrawal/presentation/screens/auto_withdrawal_screen.dart';
 import 'package:ppv_app/features/subscription/presentation/screens/fan_pass_screen.dart';
 import 'package:ppv_app/features/subscription/presentation/screens/my_subscriptions_screen.dart';
+import 'package:ppv_app/features/subscription/presentation/screens/creator_fan_pass_screen.dart';
 import 'package:ppv_app/features/affiliate/presentation/screens/affiliate_dashboard_screen.dart';
 import 'package:ppv_app/features/custom_requests/presentation/screens/custom_requests_screen.dart';
+import 'package:ppv_app/features/messaging/data/messaging_repository.dart';
 import 'package:ppv_app/features/messaging/presentation/conversations_provider.dart';
 import 'package:ppv_app/features/messaging/presentation/conversation_provider.dart';
 import 'package:ppv_app/features/messaging/presentation/screens/conversations_screen.dart';
 import 'package:ppv_app/features/messaging/presentation/screens/conversation_screen.dart';
+import 'package:ppv_app/features/bundle/data/bundle_repository.dart';
 import 'package:ppv_app/features/bundle/presentation/my_bundles_provider.dart';
 import 'package:ppv_app/features/bundle/presentation/create_bundle_provider.dart';
 import 'package:ppv_app/features/bundle/presentation/screens/my_bundles_screen.dart';
 import 'package:ppv_app/features/bundle/presentation/screens/create_bundle_screen.dart';
 import 'package:ppv_app/features/bundle/presentation/screens/public_bundle_screen.dart';
+import 'package:ppv_app/features/notifications/presentation/notification_list_screen.dart';
+import 'package:ppv_app/features/notifications/presentation/screens/notification_detail_screen.dart';
 
 /// Configuration GoRouter PPV — routes déclaratives + guard d'auth.
 ///
@@ -61,12 +67,14 @@ class AppRouter {
       : _storageService = storageService ?? const SecureStorageService();
 
   /// Routes qui ne nécessitent pas d'authentification.
-  static const _publicRoutes = [
+  // MED-07 — La route design-showcase n'est publique qu'en debug pour éviter
+  // d'exposer des détails d'UI interne en production.
+  static final _publicRoutes = [
     RouteNames.kRouteSplash,
     RouteNames.kRouteOnboarding,
     RouteNames.kRouteLogin,
     RouteNames.kRouteRegister,
-    RouteNames.kRouteDesignShowcase,
+    if (kDebugMode) RouteNames.kRouteDesignShowcase,
     RouteNames.kRouteForgotPassword,
     RouteNames.kRouteResetPassword,
     RouteNames.kRouteMaintenance,
@@ -129,8 +137,11 @@ class AppRouter {
         builder: (context, state) {
           final token = state.uri.queryParameters['token'] ?? '';
           final email = state.uri.queryParameters['email'] ?? '';
-          // Paramètres invalides → retour vers mot de passe oublié
-          if (token.length < 20 || !email.contains('@')) {
+          // MED-06 — Validation stricte du format token (alphanumérique ≥ 32 chars)
+          // et email (doit contenir @ avec un domaine non vide).
+          final tokenValid = RegExp(r'^[A-Za-z0-9]{32,}$').hasMatch(token);
+          final emailValid = RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(email);
+          if (!tokenValid || !emailValid) {
             return const ForgotPasswordScreen();
           }
           return ResetPasswordScreen(token: token, email: email);
@@ -227,7 +238,8 @@ class AppRouter {
       GoRoute(
         path: RouteNames.kRouteFanPass,
         builder: (context, state) => FanPassScreen(
-          creatorId: int.parse(state.pathParameters['creatorId']!),
+          // LOW-01 — tryParse to avoid crash on invalid path param
+          creatorId: int.tryParse(state.pathParameters['creatorId'] ?? '') ?? 0,
           creatorName: state.uri.queryParameters['name'] ?? '',
         ),
       ),
@@ -240,6 +252,10 @@ class AppRouter {
         builder: (context, state) => const CustomRequestsScreen(),
       ),
       GoRoute(
+        path: RouteNames.kRouteCreatorFanPass,
+        builder: (context, state) => const CreatorFanPassScreen(),
+      ),
+      GoRoute(
         path: RouteNames.kRouteMySubscriptions,
         builder: (context, state) => const MySubscriptionsScreen(),
       ),
@@ -247,16 +263,23 @@ class AppRouter {
       GoRoute(
         path: RouteNames.kRouteConversations,
         builder: (context, state) => ChangeNotifierProvider(
-          create: (_) => ConversationsProvider(),
+          // MED-05 — Use shared MessagingRepository (with session/maintenance callbacks)
+          create: (_) => ConversationsProvider(
+            repo: context.read<MessagingRepository>(),
+          ),
           child: const ConversationsScreen(),
         ),
       ),
       GoRoute(
         path: RouteNames.kRouteConversation,
         builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
+          // LOW-01 — Use tryParse to avoid crash on invalid path param
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           return ChangeNotifierProvider(
-            create: (_) => ConversationProvider(conversationId: id),
+            create: (_) => ConversationProvider(
+              conversationId: id,
+              repo: context.read<MessagingRepository>(),
+            ),
             child: ConversationScreen(conversationId: id),
           );
         },
@@ -265,7 +288,9 @@ class AppRouter {
       GoRoute(
         path: RouteNames.kRouteMyBundles,
         builder: (context, state) => ChangeNotifierProvider(
-          create: (_) => MyBundlesProvider(),
+          create: (ctx) => MyBundlesProvider(
+            repository: ctx.read<BundleRepository>(),
+          ),
           child: const MyBundlesScreen(),
         ),
       ),
@@ -283,6 +308,20 @@ class AppRouter {
           final paymentRef = state.uri.queryParameters['reference'] ??
               state.uri.queryParameters['trxref'];
           return PublicBundleScreen(slug: slug, paymentReference: paymentRef);
+        },
+      ),
+      // ── Notifications / Messages ───────────────────────────────────────────
+      GoRoute(
+        path: RouteNames.kRouteMessages,
+        builder: (context, state) => const NotificationListScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.kRouteNotificationDetail,
+        builder: (context, state) {
+          // LOW-01 — Use tryParse to avoid crash on invalid path param
+          final id =
+              int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return NotificationDetailScreen(notificationId: id);
         },
       ),
     ],

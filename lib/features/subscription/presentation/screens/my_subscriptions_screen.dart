@@ -4,6 +4,7 @@ import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/subscription/data/subscription_repository.dart';
+import 'package:provider/provider.dart';
 
 class MySubscriptionsScreen extends StatefulWidget {
   const MySubscriptionsScreen({super.key});
@@ -13,7 +14,6 @@ class MySubscriptionsScreen extends StatefulWidget {
 }
 
 class _MySubscriptionsScreenState extends State<MySubscriptionsScreen> {
-  final _repo = SubscriptionRepository();
   List<ActiveSubscription> _subs = [];
   bool _loading = true;
   String? _error;
@@ -21,7 +21,7 @@ class _MySubscriptionsScreenState extends State<MySubscriptionsScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
@@ -30,7 +30,7 @@ class _MySubscriptionsScreenState extends State<MySubscriptionsScreen> {
       _error = null;
     });
     try {
-      _subs = await _repo.mySubscriptions();
+      _subs = await context.read<SubscriptionRepository>().mySubscriptions();
     } catch (_) {
       _error = 'Impossible de charger vos abonnements.';
     } finally {

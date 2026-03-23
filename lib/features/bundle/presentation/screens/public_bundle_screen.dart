@@ -5,8 +5,9 @@ import 'package:ppv_app/core/routing/route_names.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
-import 'package:ppv_app/features/bundle/data/bundle_repository.dart';
+import 'package:ppv_app/features/bundle/data/bundle(_repository ?? context.read<BundleRepository>()).dart';
 import 'package:ppv_app/features/bundle/domain/bundle.dart';
+import 'package:provider/provider.dart';
 
 /// Écran public d'un bundle — accessible via deep link `/b/{slug}`.
 ///
@@ -27,7 +28,7 @@ class PublicBundleScreen extends StatefulWidget {
 }
 
 class _PublicBundleScreenState extends State<PublicBundleScreen> {
-  final BundleRepository _repository = BundleRepositoryImpl();
+  BundleRepository? _repository;
 
   Bundle? _bundle;
   bool _isLoading = true;
@@ -38,7 +39,10 @@ class _PublicBundleScreenState extends State<PublicBundleScreen> {
   @override
   void initState() {
     super.initState();
-    _loadBundle();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _repository = context.read<BundleRepository>();
+      _loadBundle();
+    });
   }
 
   Future<void> _loadBundle() async {
@@ -48,7 +52,7 @@ class _PublicBundleScreenState extends State<PublicBundleScreen> {
     });
     try {
       // Charge le bundle avec la référence si disponible (pour obtenir isPaid)
-      final bundle = await _repository.getPublicBundle(
+      final bundle = await (_repository ?? context.read<BundleRepository>()).getPublicBundle(
         widget.slug,
         ref: widget.paymentReference,
       );
@@ -82,11 +86,11 @@ class _PublicBundleScreenState extends State<PublicBundleScreen> {
     if (!mounted) return;
     setState(() => _isVerifying = true);
     try {
-      final success = await _repository.verifyPayment(reference);
+      final success = await (_repository ?? context.read<BundleRepository>()).verifyPayment(reference);
       if (!mounted) return;
       if (success) {
         // Recharge avec la référence confirmée pour obtenir isPaid = true
-        final updated = await _repository.getPublicBundle(
+        final updated = await (_repository ?? context.read<BundleRepository>()).getPublicBundle(
           widget.slug,
           ref: reference,
         );

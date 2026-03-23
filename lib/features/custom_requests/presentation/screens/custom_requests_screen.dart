@@ -4,6 +4,7 @@ import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/custom_requests/data/custom_request_repository.dart';
+import 'package:provider/provider.dart';
 
 class CustomRequestsScreen extends StatefulWidget {
   const CustomRequestsScreen({super.key});
@@ -13,21 +14,29 @@ class CustomRequestsScreen extends StatefulWidget {
 }
 
 class _CustomRequestsScreenState extends State<CustomRequestsScreen> {
-  final _repo = CustomRequestRepository();
+  CustomRequestRepository? _repo;
   List<CustomRequest> _requests = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _repo = context.read<CustomRequestRepository>();
+      _load();
+    });
   }
 
   Future<void> _load() async {
+    if (mounted) setState(() { _loading = true; _error = null; });
     try {
-      _requests = await _repo.getRequests();
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+      final repo = _repo ?? context.read<CustomRequestRepository>();
+      final data = await repo.getRequests();
+      if (mounted) setState(() { _requests = data; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _error = 'Impossible de charger les demandes. Réessayez.'; _loading = false; });
+    }
   }
 
   Color _statusColor(String status) => switch (status) {
@@ -85,6 +94,25 @@ class _CustomRequestsScreenState extends State<CustomRequestsScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.kPrimary),
             )
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _error!,
+                        style: AppTextStyles.kBodyMedium
+                            .copyWith(color: AppColors.kTextSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _load,
+                        child: const Text('Réessayer'),
+                      ),
+                    ],
+                  ),
+                )
           : _requests.isEmpty
               ? Center(
                   child: Text(

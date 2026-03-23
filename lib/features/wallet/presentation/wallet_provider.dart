@@ -1,19 +1,21 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ppv_app/core/network/api_exceptions.dart';
+import 'package:ppv_app/core/storage/secure_storage_service.dart';
 import 'package:ppv_app/features/wallet/data/wallet_repository.dart';
 import 'package:ppv_app/features/wallet/domain/wallet_transaction.dart';
 import 'package:ppv_app/features/wallet/domain/withdrawal_summary.dart';
 
-// C2 — Clés de cache SharedPreferences pour le mode hors-ligne
-const _kCacheBalance     = 'cache_wallet_balance';
-const _kCacheTotalCredits = 'cache_wallet_total_credits';
-
 class WalletProvider extends ChangeNotifier {
   final WalletRepository _repository;
+  // MED-03 — Cache financier stocké dans SecureStorage (chiffré) au lieu de SharedPreferences.
+  // Injectable pour faciliter les tests (évite les timeouts pumpAndSettle).
+  final SecureStorageService _secureStorage;
 
-  WalletProvider({required WalletRepository repository})
-      : _repository = repository;
+  WalletProvider({
+    required WalletRepository repository,
+    SecureStorageService secureStorage = const SecureStorageService(),
+  })  : _repository = repository,
+        _secureStorage = secureStorage;
 
   // ─── Balance state ───────────────────────────────────────────────────────
 
@@ -54,8 +56,7 @@ class WalletProvider extends ChangeNotifier {
 
   Future<void> _restoreBalanceFromCache() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final cached = prefs.getInt(_kCacheBalance);
+      final cached = await _secureStorage.getCachedBalance();
       if (cached != null && _balance == 0) {
         _balance = cached;
         notifyListeners();
@@ -65,8 +66,10 @@ class WalletProvider extends ChangeNotifier {
 
   Future<void> _persistBalanceToCache(int balance) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_kCacheBalance, balance);
+      await _secureStorage.saveWalletCache(
+        balance: balance,
+        totalCredits: _totalCredits,
+      );
     } catch (_) {}
   }
 
@@ -111,31 +114,24 @@ class WalletProvider extends ChangeNotifier {
       _transactionsNextCursor = result.nextCursor;
       _hasMoreTransactions = result.hasMore;
       _totalCredits = result.totalCredits;
-      // C2 — Persister le total des gains pour affichage hors-ligne
-      await _persistTotalCreditsToCache(_totalCredits);
+      // C2 — Persister le total des gains pour affichage hors-ligne (SecureStorage)
+      await _persistBalanceToCache(_balance);
     } on Exception catch (e) {
       _transactionsError = e is ApiException ? e.message
                : e is NetworkException ? e.message
                : 'Une erreur inattendue est survenue.';
       // C2 — Restaurer le total cached si le réseau est indisponible
       if (refresh) await _restoreTotalCreditsFromCache();
+
     } finally {
       _isFetchingTransactions = false;
       notifyListeners();
     }
   }
 
-  Future<void> _persistTotalCreditsToCache(int totalCredits) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_kCacheTotalCredits, totalCredits);
-    } catch (_) {}
-  }
-
   Future<void> _restoreTotalCreditsFromCache() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final cached = prefs.getInt(_kCacheTotalCredits);
+      final cached = await _secureStorage.getCachedTotalCredits();
       if (cached != null) {
         _totalCredits = cached;
       }
@@ -195,15 +191,18 @@ class WalletProvider extends ChangeNotifier {
   bool _isLoadingWithdrawals = false;
   bool _hasMoreWithdrawals = false;
   String? _nextWithdrawalCursor;
+  String? _withdrawalsError;
 
   List<WithdrawalSummary> get withdrawals => _withdrawals;
   bool get isLoadingWithdrawals => _isLoadingWithdrawals;
   bool get hasMoreWithdrawals => _hasMoreWithdrawals;
+  String? get withdrawalsError => _withdrawalsError;
 
   /// Charge (ou recharge) la liste des retraits depuis le début.
   Future<void> loadWithdrawals() async {
     if (_isLoadingWithdrawals) return;
     _isLoadingWithdrawals = true;
+    _withdrawalsError = null;
     notifyListeners();
 
     try {
@@ -211,8 +210,12 @@ class WalletProvider extends ChangeNotifier {
       _withdrawals = result.withdrawals;
       _hasMoreWithdrawals = result.hasMore;
       _nextWithdrawalCursor = result.nextCursor;
-    } catch (_) {
-      // Silence — liste reste vide
+    } on Exception catch (e) {
+      _withdrawalsError = e is ApiException
+          ? e.message
+          : e is NetworkException
+              ? e.message
+              : 'Impossible de charger les retraits. Réessayez.';
     } finally {
       _isLoadingWithdrawals = false;
       notifyListeners();

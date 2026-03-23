@@ -243,7 +243,7 @@ class _CreateBundleScreenState extends State<CreateBundleScreen> {
       BuildContext context, CreateBundleProvider provider) async {
     if (!_formKey.currentState!.validate()) return;
 
-    final repo = BundleRepositoryImpl();
+    final repo = context.read<BundleRepository>();
     final bundle = await provider.save(repo);
 
     if (!context.mounted) return;

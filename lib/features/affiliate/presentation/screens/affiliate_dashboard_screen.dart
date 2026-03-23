@@ -5,6 +5,7 @@ import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/affiliate/data/affiliate_repository.dart';
+import 'package:provider/provider.dart';
 
 class AffiliateDashboardScreen extends StatefulWidget {
   const AffiliateDashboardScreen({super.key});
@@ -16,21 +17,24 @@ class AffiliateDashboardScreen extends StatefulWidget {
 
 class _AffiliateDashboardScreenState
     extends State<AffiliateDashboardScreen> {
-  final _repo = AffiliateRepository();
   List<AffiliateLink> _links = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
+    if (mounted) setState(() { _loading = true; _error = null; });
     try {
-      _links = await _repo.myLinks();
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+      final data = await context.read<AffiliateRepository>().myLinks();
+      if (mounted) setState(() { _links = data; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _error = 'Impossible de charger les liens. Réessayez.'; _loading = false; });
+    }
   }
 
   @override
@@ -70,6 +74,25 @@ class _AffiliateDashboardScreenState
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.kPrimary),
             )
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _error!,
+                        style: AppTextStyles.kBodyMedium
+                            .copyWith(color: AppColors.kTextSecondary),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _load,
+                        child: const Text('Réessayer'),
+                      ),
+                    ],
+                  ),
+                )
           : _links.isEmpty
               ? Center(
                   child: Column(
