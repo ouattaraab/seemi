@@ -224,30 +224,66 @@ class _PpvAppState extends State<PpvApp> {
   }
 
   void _handleNotificationTap(Map<String, dynamic> data) {
-    final type = data['type'] as String?;
-    final notificationId = data['notification_id'] as String?;
-    final conversationId = data['conversation_id'] as String?;
-
-    final String targetRoute;
-    if (type == 'new_message' && conversationId != null) {
-      targetRoute =
-          RouteNames.conversation(int.tryParse(conversationId) ?? 0);
-    } else if (notificationId != null) {
-      targetRoute = RouteNames.notificationDetail(
-          int.tryParse(notificationId) ?? 0);
-    } else {
-      targetRoute = RouteNames.kRouteMessages;
-    }
+    final targetRoute = _resolveNotificationRoute(data);
+    if (targetRoute == null) return;
 
     _storageService.hasTokens().then((hasToken) {
       if (!hasToken) {
-        // Stocker le pending deep link et aller au login
         PendingDeepLinkService.instance.set(targetRoute);
         _appRouter.router.go(RouteNames.kRouteLogin);
       } else {
         _appRouter.router.push(targetRoute);
       }
     });
+  }
+
+  /// Résout la route cible à partir des données FCM.
+  /// Retourne null si le type est inconnu ou si les IDs requis sont invalides.
+  String? _resolveNotificationRoute(Map<String, dynamic> data) {
+    final type = data['type'] as String?;
+
+    switch (type) {
+      case 'new_message':
+        final id = int.tryParse(data['conversation_id']?.toString() ?? '');
+        return id != null ? RouteNames.conversation(id) : RouteNames.kRouteConversations;
+
+      case 'payment_received':
+      case 'withdrawal_processed':
+      case 'subscription_expired':
+        // Wallet / finances → écran wallet
+        return RouteNames.kRouteHome;
+
+      case 'kyc_status_changed':
+        return RouteNames.kRouteKyc;
+
+      case 'content_moderated':
+        final contentId = int.tryParse(data['content_id']?.toString() ?? '');
+        return contentId != null
+            ? RouteNames.creatorContentDetail(contentId)
+            : RouteNames.kRouteMyContents;
+
+      case 'subscription_created':
+        return RouteNames.kRouteCreatorFanPass;
+
+      case 'bundle_purchased':
+        return RouteNames.kRouteMyBundles;
+
+      case String s when s.startsWith('custom_request_'):
+        return RouteNames.kRouteCustomRequests;
+
+      case 'payment_confirmed':
+      case 'payment_failed':
+        // Notifications acheteur — pas encore d'écran dédié, fallback liste notifications
+        return RouteNames.kRouteMessages;
+
+      default:
+        // Type inconnu ou null : fallback liste des notifications
+        if (type == null) return null;
+        final notifId = int.tryParse(data['notification_id']?.toString() ?? '');
+        return notifId != null
+            ? RouteNames.notificationDetail(notifId)
+            : RouteNames.kRouteMessages;
+    }
   }
 
   @override

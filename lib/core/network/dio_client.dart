@@ -36,27 +36,26 @@ class DioClient {
       ),
     );
 
+    // HIGH-05 — TLS config doit être appliquée AVANT d'ajouter les interceptors
+    // pour que _dio.httpClientAdapter soit déjà configuré quand on le passe à AuthInterceptor.
+    if (!kIsWeb) {
+      _configureTlsPinning();
+    }
+
     _dio.interceptors.addAll([
       AuthInterceptor(
         dio: _dio, // M5 — inject pour conserver les mêmes timeouts sur retry
         storageService: storageService,
         onSessionExpired: onSessionExpired,
         onMaintenance: onMaintenance,
+        // HIGH-05 — Partage l'adaptateur HTTP pour que le Dio de refresh
+        // bénéficie de la même configuration TLS (crucial sur iOS).
+        refreshHttpClientAdapter: _dio.httpClientAdapter,
       ),
       RetryInterceptor(dio: _dio),
-      if (kDebugMode)
-        LogInterceptor(
-          requestBody: true,
-          responseBody: true,
-          logPrint: (o) => debugPrint(o.toString()),
-        ),
+      if (kDebugMode) _SanitizedLogInterceptor(),
     ]);
 
-    // HIGH-08 — Certificate pinning TLS.
-    // Pas applicable sur Web (dart:io non disponible).
-    if (!kIsWeb) {
-      _configureTlsPinning();
-    }
   }
 
   /// Configure le client TLS.
@@ -82,4 +81,49 @@ class DioClient {
 
   /// Accès au client Dio pour les repositories.
   Dio get dio => _dio;
+}
+
+/// Intercepteur de log qui masque les champs sensibles (password, token, email)
+/// pour éviter l'exposition de PII dans les logs de debug.
+class _SanitizedLogInterceptor extends Interceptor {
+  static const _sensitiveKeys = {
+    'password', 'password_confirmation', 'current_password',
+    'new_password', 'new_password_confirmation',
+    'token', 'access_token', 'refresh_token',
+    'email', 'fcm_token',
+  };
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    debugPrint('→ ${options.method} ${options.path}');
+    if (options.data != null) {
+      debugPrint('  body: ${_sanitize(options.data)}');
+    }
+    handler.next(options);
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    debugPrint('← ${response.statusCode} ${response.requestOptions.path}');
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    debugPrint('✗ ${err.response?.statusCode} ${err.requestOptions.path}: ${err.message}');
+    handler.next(err);
+  }
+
+  dynamic _sanitize(dynamic data) {
+    if (data is Map) {
+      return {
+        for (final entry in data.entries)
+          entry.key: _sensitiveKeys.contains(entry.key.toString().toLowerCase())
+              ? '***'
+              : _sanitize(entry.value),
+      };
+    }
+    if (data is List) return data.map(_sanitize).toList();
+    return data;
+  }
 }

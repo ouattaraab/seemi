@@ -1,18 +1,20 @@
+import 'dart:async' show unawaited;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ppv_app/core/network/api_exceptions.dart';
+import 'package:ppv_app/core/storage/secure_storage_service.dart';
 import 'package:ppv_app/features/content/data/content_repository.dart';
 import 'package:ppv_app/features/content/domain/content.dart';
 
-// C2 — Clés de cache SharedPreferences pour les stats hors-ligne
+// C2 — Clés de cache SharedPreferences pour les stats hors-ligne (non-sensibles)
 const _kCacheStatsViews = 'cache_stats_total_views';
 const _kCacheStatsSales = 'cache_stats_total_sales';
 
-// Clés pour la reprise d'upload chunked
-const _kPendingUploadId   = 'pending_chunked_upload_id';
-const _kPendingUploadType = 'pending_chunked_upload_type';
+// MED-04 — Session d'upload stockée dans SecureStorage (chiffré).
+const _secureStorage = SecureStorageService();
 
 /// Phase d'upload visible par l'UI.
 enum UploadPhase { idle, compressing, uploading, processing }
@@ -61,12 +63,9 @@ class ContentProvider extends ChangeNotifier {
   String?       get contentsError    => _contentsError;
   bool          get hasMore          => _hasMore;
 
-  int get totalViews => _myContents.isNotEmpty
-      ? _myContents.fold(0, (s, c) => s + c.viewCount)
-      : _cachedTotalViews;
-  int get totalSales => _myContents.isNotEmpty
-      ? _myContents.fold(0, (s, c) => s + c.purchaseCount)
-      : _cachedTotalSales;
+  // Stats calculées une seule fois quand _myContents change (pas à chaque getter call)
+  int get totalViews => _cachedTotalViews;
+  int get totalSales => _cachedTotalSales;
 
   @override
   void dispose() {
@@ -94,6 +93,7 @@ class ContentProvider extends ChangeNotifier {
         photo,
         fileHash: fileHash,
         onProgress: (sent, total) {
+          if (_disposed) return;
           _uploadProgress = total > 0 ? sent / total : null;
           _safeNotify();
         },
@@ -136,8 +136,6 @@ class ContentProvider extends ChangeNotifier {
     _uploadProgress = 0;
     _safeNotify();
 
-    final prefs = await SharedPreferences.getInstance();
-
     try {
       final fileSize = await video.length();
       final fileName = video.path.split('/').last;
@@ -160,9 +158,8 @@ class ContentProvider extends ChangeNotifier {
       final chunkSize   = session.chunkSize;
       final totalChunks = session.totalChunks;
 
-      // Sauvegarder l'uploadId pour reprise potentielle
-      await prefs.setString(_kPendingUploadId, uploadId);
-      await prefs.setString(_kPendingUploadType, 'video');
+      // MED-04 — Sauvegarder l'uploadId dans SecureStorage (chiffré) pour reprise potentielle
+      await _secureStorage.savePendingUpload(uploadId: uploadId, type: 'video');
 
       // 2. Vérifier si un upload partiel existe (reprise)
       int startChunk = 0;
@@ -196,6 +193,7 @@ class ContentProvider extends ChangeNotifier {
             }
           }
 
+          if (_disposed) return;
           _uploadProgress = (i + 1) / totalChunks;
           onChunkSent?.call(i + 1, totalChunks);
           _safeNotify();
@@ -210,9 +208,8 @@ class ContentProvider extends ChangeNotifier {
         thumbnail: thumbnail,
       );
 
-      // Nettoyer la sauvegarde de reprise
-      await prefs.remove(_kPendingUploadId);
-      await prefs.remove(_kPendingUploadType);
+      // MED-04 — Nettoyer la session d'upload dans SecureStorage
+      await _secureStorage.clearPendingUpload();
 
       return true;
     } catch (e) {
@@ -320,7 +317,10 @@ class ContentProvider extends ChangeNotifier {
       _myContents  = refresh ? result.contents : [..._myContents, ...result.contents];
       _nextCursor  = result.nextCursor;
       _hasMore     = result.hasMore;
-      await _persistStatsToCache();
+      // Recalcul synchrone pour que les getters soient à jour avant notifyListeners()
+      _cachedTotalViews = _myContents.fold(0, (s, c) => s + c.viewCount);
+      _cachedTotalSales = _myContents.fold(0, (s, c) => s + c.purchaseCount);
+      unawaited(_persistStatsToCache());
     } catch (e) {
       _contentsError = _clean(e, 'Erreur lors du chargement des contenus.');
     } finally {
@@ -330,14 +330,12 @@ class ContentProvider extends ChangeNotifier {
   }
 
   Future<void> _persistStatsToCache() async {
+    // Les valeurs _cached* sont déjà à jour (calculées synchroniquement dans loadMyContents).
+    // On écrit juste en prefs pour la persistance hors-ligne.
     try {
-      final prefs  = await SharedPreferences.getInstance();
-      final views  = _myContents.fold(0, (s, c) => s + c.viewCount);
-      final sales  = _myContents.fold(0, (s, c) => s + c.purchaseCount);
-      await prefs.setInt(_kCacheStatsViews, views);
-      await prefs.setInt(_kCacheStatsSales, sales);
-      _cachedTotalViews = views;
-      _cachedTotalSales = sales;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_kCacheStatsViews, _cachedTotalViews);
+      await prefs.setInt(_kCacheStatsSales, _cachedTotalSales);
     } catch (_) {}
   }
 
@@ -413,7 +411,8 @@ class ContentProvider extends ChangeNotifier {
   }
 
   String _clean(Object e, String fallback) {
-    final raw = e.toString().replaceFirst('Exception: ', '');
-    return raw.isNotEmpty ? raw : fallback;
+    if (e is ApiException) return e.message;
+    if (e is NetworkException) return e.message;
+    return fallback;
   }
 }
