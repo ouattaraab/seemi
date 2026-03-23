@@ -67,4 +67,40 @@ class NotificationRepository {
       throw NetworkException.fromDioException(e);
     }
   }
+
+  /// GET /api/v1/profile/notification-preferences
+  Future<Map<String, bool>> getNotificationPreferences() async {
+    try {
+      final response = await _dio.get('/profile/notification-preferences');
+      final prefs = response.data['data']['preferences'] as Map<String, dynamic>;
+      return prefs.map((k, v) => MapEntry(k, v as bool? ?? true));
+    } on DioException catch (e) {
+      if (e.response != null) throw ApiException.fromDioException(e);
+      throw NetworkException.fromDioException(e);
+    }
+  }
+
+  /// PUT /api/v1/profile/notification-preferences
+  Future<void> updateNotificationPreferences(Map<String, bool> prefs) async {
+    try {
+      await _dio.put('/profile/notification-preferences', data: prefs);
+    } on DioException catch (e) {
+      if (e.response != null) throw ApiException.fromDioException(e);
+      throw NetworkException.fromDioException(e);
+    }
+  }
+
+  /// GET /api/v1/notifications/{id}
+  /// Retourne la notification et la marque comme lue (côté serveur).
+  Future<AppNotification> getNotification(int id) async {
+    try {
+      final response = await _dio.get('/notifications/$id');
+      final data = response.data['data'] as Map<String, dynamic>;
+      return AppNotification.fromJson(
+          data['notification'] as Map<String, dynamic>);
+    } on DioException catch (e) {
+      if (e.response != null) throw ApiException.fromDioException(e);
+      throw NetworkException.fromDioException(e);
+    }
+  }
 }

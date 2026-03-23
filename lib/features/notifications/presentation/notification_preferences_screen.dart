@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ppv_app/core/theme/app_colors.dart';
+import 'package:ppv_app/features/notifications/data/notification_repository.dart';
 
 /// Écran de préférences de notifications.
-/// Les toggles sont stockés localement via SharedPreferences.
+///
+/// Charge depuis l'API au démarrage (avec fallback SharedPreferences hors-ligne).
+/// Sauvegarde vers l'API en fire-and-forget à chaque toggle, avec copie locale.
 class NotificationPreferencesScreen extends StatefulWidget {
   const NotificationPreferencesScreen({super.key});
 
@@ -29,23 +33,77 @@ class _NotificationPreferencesScreenState
   @override
   void initState() {
     super.initState();
-    _loadPreferences();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPreferences());
   }
 
   Future<void> _loadPreferences() async {
+    // 1. Afficher le cache local immédiatement
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _payment    = prefs.getBool(_kPaymentKey)    ?? true;
-      _withdrawal = prefs.getBool(_kWithdrawalKey) ?? true;
-      _moderation = prefs.getBool(_kModerationKey) ?? true;
-      _newSale    = prefs.getBool(_kNewSaleKey)    ?? true;
-      _loading    = false;
-    });
+    if (mounted) {
+      setState(() {
+        _payment    = prefs.getBool(_kPaymentKey)    ?? true;
+        _withdrawal = prefs.getBool(_kWithdrawalKey) ?? true;
+        _moderation = prefs.getBool(_kModerationKey) ?? true;
+        _newSale    = prefs.getBool(_kNewSaleKey)    ?? true;
+        _loading    = false;
+      });
+    }
+
+    // 2. Charger depuis l'API en arrière-plan et mettre à jour si différent
+    try {
+      final repo = context.read<NotificationRepository>();
+      final apiPrefs = await repo.getNotificationPreferences();
+      if (!mounted) return;
+      setState(() {
+        _payment    = apiPrefs['payment']    ?? _payment;
+        _withdrawal = apiPrefs['withdrawal'] ?? _withdrawal;
+        _moderation = apiPrefs['moderation'] ?? _moderation;
+        _newSale    = apiPrefs['new_sale']   ?? _newSale;
+      });
+      // Mettre à jour le cache local avec les valeurs API
+      await _saveLocally();
+    } catch (_) {
+      // API indisponible — les préférences locales sont déjà affichées
+    }
   }
 
-  Future<void> _toggle(String key, bool value) async {
+  Future<void> _saveLocally() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(key, value);
+    await prefs.setBool(_kPaymentKey,    _payment);
+    await prefs.setBool(_kWithdrawalKey, _withdrawal);
+    await prefs.setBool(_kModerationKey, _moderation);
+    await prefs.setBool(_kNewSaleKey,    _newSale);
+  }
+
+  void _toggle(String key, bool value) {
+    setState(() {
+      switch (key) {
+        case _kPaymentKey:    _payment    = value;
+        case _kWithdrawalKey: _withdrawal = value;
+        case _kModerationKey: _moderation = value;
+        case _kNewSaleKey:    _newSale    = value;
+      }
+    });
+
+    // Sauvegarder localement (synchrone) + API (fire-and-forget)
+    _saveLocally().ignore();
+    _pushToApi().ignore();
+
+    // Note: les préférences n'affectent pas le compteur de notifications non lues
+  }
+
+  Future<void> _pushToApi() async {
+    try {
+      final repo = context.read<NotificationRepository>();
+      await repo.updateNotificationPreferences({
+        'payment':    _payment,
+        'withdrawal': _withdrawal,
+        'moderation': _moderation,
+        'new_sale':   _newSale,
+      });
+    } catch (_) {
+      // API indisponible — préférences locales conservées
+    }
   }
 
   @override
@@ -82,19 +140,13 @@ class _NotificationPreferencesScreenState
                     title: 'Paiements reçus',
                     subtitle: 'Alerte quand un acheteur paie votre contenu',
                     value: _payment,
-                    onChanged: (v) {
-                      setState(() => _payment = v);
-                      _toggle(_kPaymentKey, v);
-                    },
+                    onChanged: (v) => _toggle(_kPaymentKey, v),
                   ),
                   _PrefTile(
                     title: 'Retraits traités',
                     subtitle: 'Statut de vos demandes de retrait',
                     value: _withdrawal,
-                    onChanged: (v) {
-                      setState(() => _withdrawal = v);
-                      _toggle(_kWithdrawalKey, v);
-                    },
+                    onChanged: (v) => _toggle(_kWithdrawalKey, v),
                   ),
                   const SizedBox(height: 24),
                   const _SectionLabel('CONTENU'),
@@ -103,19 +155,13 @@ class _NotificationPreferencesScreenState
                     title: 'Nouvelles ventes',
                     subtitle: 'Résumé des ventes par contenu',
                     value: _newSale,
-                    onChanged: (v) {
-                      setState(() => _newSale = v);
-                      _toggle(_kNewSaleKey, v);
-                    },
+                    onChanged: (v) => _toggle(_kNewSaleKey, v),
                   ),
                   _PrefTile(
                     title: 'Modération',
                     subtitle: 'Décisions KYC et signalements de vos contenus',
                     value: _moderation,
-                    onChanged: (v) {
-                      setState(() => _moderation = v);
-                      _toggle(_kModerationKey, v);
-                    },
+                    onChanged: (v) => _toggle(_kModerationKey, v),
                   ),
                   const SizedBox(height: 32),
                   const Text(

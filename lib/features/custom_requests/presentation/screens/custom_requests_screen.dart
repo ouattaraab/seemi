@@ -14,28 +14,40 @@ class CustomRequestsScreen extends StatefulWidget {
 }
 
 class _CustomRequestsScreenState extends State<CustomRequestsScreen> {
-  CustomRequestRepository? _repo;
   List<CustomRequest> _requests = [];
   bool _loading = true;
   String? _error;
+  final Set<int> _processingIds = {};
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _repo = context.read<CustomRequestRepository>();
-      _load();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {
     if (mounted) setState(() { _loading = true; _error = null; });
     try {
-      final repo = _repo ?? context.read<CustomRequestRepository>();
-      final data = await repo.getRequests();
+      final data = await context.read<CustomRequestRepository>().getRequests();
       if (mounted) setState(() { _requests = data; _loading = false; });
     } catch (_) {
       if (mounted) setState(() { _error = 'Impossible de charger les demandes. Réessayez.'; _loading = false; });
+    }
+  }
+
+  Future<void> _handleAction(int id, Future<void> Function() action) async {
+    if (_processingIds.contains(id)) return;
+    if (mounted) setState(() => _processingIds.add(id));
+    try {
+      await action();
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Action impossible. Réessayez.')),
+      );
+    } finally {
+      if (mounted) setState(() => _processingIds.remove(id));
     }
   }
 
@@ -199,11 +211,9 @@ class _CustomRequestsScreenState extends State<CustomRequestsScreen> {
                                 children: [
                                   Expanded(
                                     child: OutlinedButton(
-                                      onPressed: () {
-                                        _repo
-                                            .accept(r.id)
-                                            .then((_) => _load());
-                                      },
+                                      onPressed: _processingIds.contains(r.id)
+                                          ? null
+                                          : () => _handleAction(r.id, () => context.read<CustomRequestRepository>().accept(r.id)),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: AppColors.kSuccess,
                                         side: BorderSide(
@@ -211,17 +221,17 @@ class _CustomRequestsScreenState extends State<CustomRequestsScreen> {
                                               .withValues(alpha: 0.5),
                                         ),
                                       ),
-                                      child: const Text('Accepter'),
+                                      child: _processingIds.contains(r.id)
+                                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                                          : const Text('Accepter'),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: OutlinedButton(
-                                      onPressed: () {
-                                        _repo
-                                            .reject(r.id)
-                                            .then((_) => _load());
-                                      },
+                                      onPressed: _processingIds.contains(r.id)
+                                          ? null
+                                          : () => _handleAction(r.id, () => context.read<CustomRequestRepository>().reject(r.id)),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: AppColors.kError,
                                         side: BorderSide(
@@ -229,7 +239,9 @@ class _CustomRequestsScreenState extends State<CustomRequestsScreen> {
                                               .withValues(alpha: 0.5),
                                         ),
                                       ),
-                                      child: const Text('Refuser'),
+                                      child: _processingIds.contains(r.id)
+                                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                                          : const Text('Refuser'),
                                     ),
                                   ),
                                 ],
