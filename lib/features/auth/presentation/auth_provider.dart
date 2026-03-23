@@ -184,6 +184,15 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Vérifie si le token de réinitialisation est encore valide (sans le consommer).
+  /// Lance [AuthApiException] si invalide ou expiré.
+  Future<void> checkResetToken({
+    required String email,
+    required String token,
+  }) async {
+    await _repository.checkResetToken(email: email, token: token);
+  }
+
   /// Réinitialise le mot de passe avec le token reçu par email.
   Future<bool> resetPassword({
     required String email,
@@ -247,6 +256,44 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       _safeNotify();
       return false;
+    }
+  }
+
+  /// Renouvelle les tokens via le refresh token — utilisé après authentification biométrique.
+  /// HIGH-02 — Évite de stocker le mot de passe pour la biométrie.
+  /// Retourne [true] si le refresh a réussi, [false] si le refresh token est expiré.
+  Future<bool> refreshTokensForBiometric() async {
+    _isLoading = true;
+    _safeNotify();
+    try {
+      await _repository.refreshToken();
+      _isLoading = false;
+      _safeNotify();
+      return true;
+    } catch (_) {
+      _isLoading = false;
+      _safeNotify();
+      return false;
+    }
+  }
+
+  /// Enregistre (ou renouvelle) le token FCM du device auprès de l'API.
+  ///
+  /// À appeler au démarrage quand l'utilisateur est déjà authentifié,
+  /// pour s'assurer que le token est à jour en base même sans login explicite.
+  Future<void> refreshFcmToken() async {
+    try {
+      final fcmToken = await FcmService.instance.initialize();
+      if (fcmToken != null) {
+        await _repository.registerFcmToken(fcmToken);
+      }
+      FcmService.instance.listenTokenRefresh((newToken) async {
+        try {
+          await _repository.registerFcmToken(newToken);
+        } catch (_) {}
+      });
+    } catch (_) {
+      // FCM non disponible — ne bloque pas le démarrage
     }
   }
 

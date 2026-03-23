@@ -290,6 +290,25 @@ class AuthRemoteDataSource {
     }
   }
 
+  /// Vérifie si le token de réinitialisation est encore valide, SANS le consommer.
+  /// Lance [AuthApiException] si invalide ou expiré.
+  Future<void> checkResetToken({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      await _dio.post('/auth/check-reset-token', options: _formUrlEncoded, data: {
+        'email': email,
+        'token': token,
+      });
+    } on DioException catch (e) {
+      final responseData = e.response?.data;
+      final code    = responseData is Map ? responseData['code']    as String? : null;
+      final message = responseData is Map ? responseData['message'] as String? ?? 'Lien invalide' : 'Erreur de connexion au serveur';
+      throw AuthApiException(message: message, code: code);
+    }
+  }
+
   /// Réinitialise le mot de passe avec le token reçu par email.
   Future<void> resetPassword({
     required String email,

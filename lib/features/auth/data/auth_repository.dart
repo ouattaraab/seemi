@@ -160,6 +160,15 @@ class AuthRepository {
     await _dataSource.forgotPassword(email: email);
   }
 
+  /// Vérifie si le token de réinitialisation est encore valide (non consommé, non expiré).
+  /// Lance une exception si le token est invalide ou expiré.
+  Future<void> checkResetToken({
+    required String email,
+    required String token,
+  }) async {
+    await _dataSource.checkResetToken(email: email, token: token);
+  }
+
   /// Réinitialise le mot de passe.
   Future<void> resetPassword({
     required String email,
