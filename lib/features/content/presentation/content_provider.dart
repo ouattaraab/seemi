@@ -50,6 +50,10 @@ class ContentProvider extends ChangeNotifier {
   int _cachedTotalViews = 0;
   int _cachedTotalSales = 0;
 
+  // Exposé pour permettre la réutilisation du repo partagé dans les widgets enfants
+  // sans recréer un DioClient orphelin (qui n'aurait pas les callbacks session/maintenance).
+  ContentRepository get repository => _repository;
+
   bool         get isLoading             => _isLoading;
   bool         get isPublishing          => _isPublishing;
   String?      get error                 => _error;

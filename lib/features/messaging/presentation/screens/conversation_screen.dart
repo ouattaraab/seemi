@@ -12,6 +12,9 @@ import 'package:ppv_app/core/theme/app_colors.dart';
 import 'package:ppv_app/core/theme/app_spacing.dart';
 import 'package:ppv_app/core/theme/app_text_styles.dart';
 import 'package:ppv_app/features/auth/presentation/profile_provider.dart';
+import 'package:ppv_app/features/content/data/content_model.dart';
+import 'package:ppv_app/features/content/data/content_repository.dart';
+import 'package:ppv_app/features/content/presentation/content_provider.dart';
 import 'package:ppv_app/features/messaging/domain/conversation.dart';
 import 'package:ppv_app/features/messaging/presentation/conversation_provider.dart';
 
@@ -648,7 +651,7 @@ class _InputBarState extends State<_InputBar> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur enregistrement: $e'),
+            content: const Text('Impossible de démarrer l\'enregistrement.'),
             backgroundColor: AppColors.kError,
           ),
         );
@@ -891,20 +894,63 @@ class _RecordingBarState extends State<_RecordingBar> {
 
 // ─── Locked Content Picker Sheet ─────────────────────────────────────────────
 
-class _LockedContentPickerSheet extends StatelessWidget {
+class _LockedContentPickerSheet extends StatefulWidget {
   final void Function(int contentId) onSelect;
 
   const _LockedContentPickerSheet({required this.onSelect});
 
   @override
+  State<_LockedContentPickerSheet> createState() =>
+      _LockedContentPickerSheetState();
+}
+
+class _LockedContentPickerSheetState
+    extends State<_LockedContentPickerSheet> {
+  // Réutilise le ContentProvider partagé pour éviter un DioClient orphelin
+  // (sans callbacks onSessionExpired / onMaintenance).
+  late final ContentRepository _repo;
+  List<ContentModel> _contents = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo = context.read<ContentProvider>().repository;
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final result = await _repo.getMyContents();
+      if (mounted) {
+        setState(() {
+          _contents = result.contents
+              .where((c) => c.status == 'published')
+              .toList();
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = 'Impossible de charger vos contenus.';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.6,
+      initialChildSize: 0.65,
       minChildSize: 0.4,
-      maxChildSize: 0.9,
+      maxChildSize: 0.92,
       builder: (_, controller) => Column(
         children: [
+          // Handle
           Container(
             margin: const EdgeInsets.symmetric(vertical: 10),
             width: 36,
@@ -929,23 +975,68 @@ class _LockedContentPickerSheet extends StatelessWidget {
           ),
           const Divider(height: 1, color: AppColors.kBorder),
           Expanded(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.kSpaceMd),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Entrez l\'ID du contenu à envoyer :',
-                      style: AppTextStyles.kBodyMedium
-                          .copyWith(color: AppColors.kTextSecondary),
-                    ),
-                    const SizedBox(height: AppSpacing.kSpaceMd),
-                    _ContentIdInput(onSelect: onSelect),
-                  ],
-                ),
-              ),
-            ),
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.kPrimary),
+                  )
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.kSpaceMd),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _error!,
+                                style: AppTextStyles.kBodyMedium.copyWith(
+                                  color: AppColors.kTextSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _loading = true;
+                                    _error = null;
+                                  });
+                                  _load();
+                                },
+                                child: const Text('Réessayer'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _contents.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Aucun contenu publié.',
+                              style: AppTextStyles.kBodyMedium.copyWith(
+                                color: AppColors.kTextSecondary,
+                              ),
+                            ),
+                          )
+                        : GridView.builder(
+                            controller: controller,
+                            padding: const EdgeInsets.all(12),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 0.75,
+                            ),
+                            itemCount: _contents.length,
+                            itemBuilder: (_, i) {
+                              final content = _contents[i];
+                              return GestureDetector(
+                                onTap: () => widget.onSelect(content.id),
+                                child: _ContentPickerCard(content: content),
+                              );
+                            },
+                          ),
           ),
         ],
       ),
@@ -953,65 +1044,96 @@ class _LockedContentPickerSheet extends StatelessWidget {
   }
 }
 
-class _ContentIdInput extends StatefulWidget {
-  final void Function(int contentId) onSelect;
+class _ContentPickerCard extends StatelessWidget {
+  final ContentModel content;
 
-  const _ContentIdInput({required this.onSelect});
-
-  @override
-  State<_ContentIdInput> createState() => _ContentIdInputState();
-}
-
-class _ContentIdInputState extends State<_ContentIdInput> {
-  final _ctrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  const _ContentPickerCard({required this.content});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _ctrl,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              hintText: 'ID du contenu',
-              hintStyle: AppTextStyles.kCaption,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
-                borderSide: const BorderSide(color: AppColors.kBorder),
+    final priceFcfa = (content.price ?? 0) ~/ 100;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.kBgSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
+        border: Border.all(color: AppColors.kBorder),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Thumbnail
+            if (content.blurUrl != null)
+              Image.network(
+                content.blurUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: AppColors.kBgElevated,
+                  child: Icon(
+                    content.type == 'video'
+                        ? Icons.videocam_outlined
+                        : Icons.image_outlined,
+                    color: AppColors.kTextTertiary,
+                    size: 24,
+                  ),
+                ),
+              )
+            else
+              Container(
+                color: AppColors.kBgElevated,
+                child: Icon(
+                  content.type == 'video'
+                      ? Icons.videocam_outlined
+                      : Icons.image_outlined,
+                  color: AppColors.kTextTertiary,
+                  size: 24,
+                ),
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            // Gradient + price
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.75),
+                    ],
+                    stops: const [0.5, 1.0],
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.kSpaceSm),
-        ElevatedButton(
-          onPressed: () {
-            final id = int.tryParse(_ctrl.text.trim());
-            if (id != null) widget.onSelect(id);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.kPrimaryDark,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.kRadiusMd),
+            Positioned(
+              bottom: 5,
+              left: 5,
+              right: 5,
+              child: Text(
+                priceFcfa == 0 ? 'GRATUIT' : '$priceFcfa F',
+                style: const TextStyle(
+                  fontFamily: 'Plus Jakarta Sans',
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          child: const Text(
-            'Envoyer',
-            style: TextStyle(
-                fontFamily: 'Plus Jakarta Sans',
-                fontWeight: FontWeight.w700,
-                color: Colors.white),
-          ),
+            // Video badge
+            if (content.type == 'video')
+              const Positioned(
+                top: 5,
+                right: 5,
+                child: Icon(Icons.videocam_rounded,
+                    size: 14, color: Colors.white),
+              ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
